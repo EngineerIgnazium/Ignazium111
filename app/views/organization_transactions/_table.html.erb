@@ -1,18 +1,19 @@
-<div class="table-responsive">
-  <table class="table table-striped table-bordered table-condensed">
-    <thead>
-      <tr class="border-bottom">
-        <%= sortable_tr "posted_at", "Date" %>
-        <%= sortable_tr "amount_cents", "Amount" %>
-        <th scope="col">Reference</th>
-      </tr>
-    </thead>
-    <tbody class="font-size-1">
-      <%= render partial: "/organization_transactions/tr", locals: { organization: @organization }, collection: organization_transactions, as: :organization_transaction %>
-    </tbody>
-  </table>
-  <div class="d-flex justify-content-between align-items-center">
-    <span><%== pagy_bootstrap_nav(pagy) if pagy.pages > 1 %></span>
+<%= table_wrapper do %>
+  <%= paginated_table do %>
+    <%= table_head do %>
+      <%= table_row header: true do %>
+        <%= sortable_tr "posted_at", "Date", add_style: "width:20%;" %>
+        <%= sortable_tr "amount_cents", "Amount", add_style: "width:20%;" %>
+        <%= table_column "Reference" %>
+        <%= table_column "", add_style: "width:20%;" %>
+      <% end %>
+    <% end %>
+    <%= table_body do %>
+      <%= render partial: "/organization_transactions/tr", locals: {organization: organization}, collection: organization_transactions, as: :organization_transaction %>
+    <% end %>
+  <% end %>
+  <%= pagination_wrapper do %>
+    <span><%== pagy_bootstrap_nav(pagy) %></span>
     <%= pagy_entries(pagy) %>
-  </div>
-</div>
+  <% end if pagy.pages > 1 %>
+<% end %>

@@ -1,23 +1,4 @@
-<% content_for :breadcrumbs do %>
-  <%= render "/@shared/breadcrumbs/users" %>
-  <%= render "/@shared/breadcrumbs/user", user: @user %>
-  <%= render "/@shared/breadcrumbs/edit_password", class: "active" %>
+<%= render(PageComponent.new(subject: @user)) do |component| %>
+  <%= component.with(:header) { render(Page::HeaderComponent.new(title: "Edit Password", subtitle: "Fill out the form below")) } %>
+  <%= component.with(:body) { render("/user_passwords/form") } %>
 <% end %>
-
-<% content_for :actions do %>
-  <%= render "/@shared/actions/show_user", user: @user %>
-<% end %>
-
-<% content_for :page_heading do %>
-  <%= page_heading "Update", "Password",
-    subtitle: "Enter a new password below",
-    icon: "fas fa-lock" %>
-<% end %>
-
-<main id="content" role="main">
-  <div class="bg-light">
-    <div class="container space-2">
-      <%= render "/user_passwords/form" %>
-    </div>
-  </div>
-</main>

@@ -1,10 +1,14 @@
 class CampaignDailiesController < ApplicationController
+  include Campaigns::Stashable
+
   before_action :authenticate_user!
   before_action :set_campaign
 
   def index
     @summary = @campaign.summary(@start_date, @end_date)
-    @daily_summaries = @campaign.daily_summaries_by_day(@start_date, @end_date)
+    daily_summaries = @campaign.daily_summaries_by_day(@start_date, @end_date).unscope(:order)
+    @pagy, @daily_summaries = pagy(daily_summaries)
+
     respond_to do |format|
       format.html
       format.csv do
@@ -22,7 +26,7 @@ class CampaignDailiesController < ApplicationController
     @campaign = if authorized_user.can_admin_system?
       Campaign.find(params[:campaign_id])
     else
-      current_user.campaigns.find(params[:campaign_id])
+      Current.organization&.campaigns&.find(params[:campaign_id])
     end
   end
 end

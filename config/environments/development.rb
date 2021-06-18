@@ -1,6 +1,9 @@
 require "dotenv/load"
 
 Rails.application.configure do
+  # Prepare the ingress controller used to receive mail
+  config.action_mailbox.ingress = :sendgrid
+
   # Verifies that versions and hashed value of the package contents in the project's package.json
   config.webpacker.check_yarn_integrity = false
   # Settings specified here will take precedence over those in config/application.rb.
@@ -24,12 +27,12 @@ Rails.application.configure do
     config.cache_store = :redis_cache_store, {
       namespace: "code_fund_ads_#{Rails.env}_cache",
       url: ENV["REDIS_CACHE_URL"],
-      size: ENV.fetch("RAILS_MAX_THREADS", 10).to_i,
+      size: ENV.fetch("REDIS_CACHE_MAX_THREADS", 5).to_i,
       expires_in: 7.days,
-      race_condition_ttl: 10.seconds,
+      race_condition_ttl: 10.seconds
     }
     config.public_file_server.headers = {
-      "Cache-Control" => "public, max-age=#{2.days.to_i}",
+      "Cache-Control" => "public, max-age=#{2.days.to_i}"
     }
   else
     config.action_controller.perform_caching = false
@@ -37,12 +40,16 @@ Rails.application.configure do
   end
 
   # Store uploaded files on the local file system (see config/storage.yml for options)
-  config.active_storage.service = :local
+  config.active_storage.service = if ENV["AWS_S3_ACCESS_KEY_ID"].present?
+    :amazon
+  else
+    :local
+  end
 
   config.action_mailer.raise_delivery_errors = false
   config.action_mailer.perform_caching = false
-  config.action_mailer.delivery_method = :letter_opener
   config.action_mailer.perform_deliveries = true
+  config.action_mailer.delivery_method = :letter_opener
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
@@ -69,4 +76,11 @@ Rails.application.configure do
   config.file_watcher = ActiveSupport::EventedFileUpdateChecker
 
   config.action_mailer.default_url_options = {host: "localhost", port: 3000}
+
+  config.after_initialize do
+    Bullet.enable = true
+    Bullet.bullet_logger = true
+    Bullet.console = true
+    Bullet.rails_logger = true
+  end
 end

@@ -19,7 +19,7 @@ class CampaignReportsController < ApplicationController
       to: campaign_report_params[:email],
       campaign: @campaign,
       start_date: @start_date.iso8601,
-      end_date: @end_date.iso8601,
+      end_date: @end_date.iso8601
     }
   end
 
@@ -27,7 +27,7 @@ class CampaignReportsController < ApplicationController
     @campaign = if authorized_user.can_admin_system?
       Campaign.find(params[:campaign_id])
     else
-      current_user.campaigns.find(params[:campaign_id])
+      Current.organization&.campaigns&.find(params[:campaign_id])
     end
   end
 

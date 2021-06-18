@@ -6,7 +6,7 @@ class ImpressionsController < ApplicationController
   after_action :create_impression
 
   def show
-    send_file Rails.root.join("app/assets/images/pixel.gif"), type: "image/gif", disposition: "inline"
+    send_file Rails.root.join("app/javascript/images/pixel.gif"), type: "image/gif", disposition: "inline"
   end
 
   protected
@@ -27,7 +27,7 @@ class ImpressionsController < ApplicationController
     Rails.cache.delete params[:id]
 
     if @virtual_impression.nil?
-      return send_file(Rails.root.join("app/assets/images/pixel.gif"), type: "image/gif", disposition: "inline", status: :accepted)
+      send_file(Rails.root.join("app/javascript/images/pixel.gif"), type: "image/gif", disposition: "inline", status: :accepted)
     end
   end
 
@@ -39,9 +39,10 @@ class ImpressionsController < ApplicationController
       @virtual_impression[:creative_id],
       @virtual_impression[:ad_template],
       @virtual_impression[:ad_theme],
-      request.remote_ip,
-      request.user_agent,
-      Time.current.iso8601,
+      @virtual_impression[:ip_address],
+      @virtual_impression[:country_code],
+      request.user_agent.encode(Encoding::UTF_8, invalid: :replace, undef: :replace, replace: ""),
+      Time.current.iso8601
     )
   end
 end

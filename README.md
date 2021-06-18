@@ -1,51 +1,77 @@
+[![Maintainability](https://api.codeclimate.com/v1/badges/eee4d09c1a37d23e8990/maintainability)](https://codeclimate.com/github/gitcoinco/code_fund_ads/maintainability)
+[![All Contributors](https://img.shields.io/badge/all_contributors-15-orange.svg?style=flat-square)](#contributors)
+[![StackShare](https://img.shields.io/badge/tech-stack-0690fa.svg?style=flat)](https://stackshare.io/codefund/codefund)
+[![Join the conversation](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/code_fund_ads/community)
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fgitcoinco%2Fcode_fund_ads.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fgitcoinco%2Fcode_fund_ads?ref=badge_shield)
+[![codecov](https://codecov.io/gh/gitcoinco/code_fund_ads/branch/master/graph/badge.svg)](https://codecov.io/gh/gitcoinco/code_fund_ads)
+[![TODOs](https://badgen.net/https/api.tickgit.com/badgen/github.com/gitcoinco/code_fund_ads)](https://www.tickgit.com/browse?repo=github.com/gitcoinco/code_fund_ads)
+<br />
+
+[![CircleCI](https://circleci.com/gh/gitcoinco/code_fund_ads.svg?style=svg)](https://circleci.com/gh/gitcoinco/code_fund_ads)
+![ERB Lint](https://github.com/gitcoinco/code_fund_ads/workflows/ERB%20Lint/badge.svg)
+![StandardRB](https://github.com/gitcoinco/code_fund_ads/workflows/StandardRB/badge.svg)
+![Prettier-Standard](https://github.com/gitcoinco/code_fund_ads/workflows/Prettier-Standard/badge.svg)
+
+<br />
 <p align="center">
-  <a href="https://codefund.io/properties/444/visit-sponsor">
-    <img src="https://codefund.io/properties/444/sponsor" />
+  <a href="https://github.com/gitcoinco/code_fund_ads">
+    <img src="app/javascript/images/branding/codefund-logo-square-512.png" alt="Logo" width="128" height="128">
   </a>
+
+  <h2 align="center">CodeFund Ads</h2>
+
+  <p align="center">
+    CodeFund Ads is an ethical and discreet ad platform that funds open-source.
+    It helps your favorite projects thrive by paying maintainers the majority of all generated revenue.
+  </p>
 </p>
 
-[![Maintainability](https://api.codeclimate.com/v1/badges/eee4d09c1a37d23e8990/maintainability)](https://codeclimate.com/github/gitcoinco/code_fund_ads/maintainability)
-[![All Contributors](https://img.shields.io/badge/all_contributors-7-orange.svg?style=flat-square)](#contributors)
-[![StackShare](https://img.shields.io/badge/tech-stack-0690fa.svg?style=flat)](https://stackshare.io/codefund/codefund)
-[![CircleCI](https://circleci.com/gh/gitcoinco/code_fund_ads.svg?style=svg)](https://circleci.com/gh/gitcoinco/code_fund_ads)
-[![Join the conversation](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/code_fund_ads/community)
-
-# CodeFund Ads
-
-CodeFund Ads is an ethical and discreet ad platform that funds open-source.
-It helps your favorite projects thrive by paying maintainers the majority of all generated revenue.
-
-<!-- Tocer[start]: Auto-generated, don't remove. -->
+<!-- ⬇️ Use `gem install tocer && tocer -g` to regenerate this table of contents ⬇️ -->
+<!-- markdownlint-disable -->
+<!-- prettier-ignore-start -->
 
 ## Table of Contents
 
   - [Publisher JavaScript Embedding](#publisher-javascript-embedding)
     - [Optional Query String Parameters](#optional-query-string-parameters)
+    - [Embed Callbacks](#embed-callbacks)
+      - [Example](#example)
+      - [Responses](#responses)
   - [API](#api)
-  - [Ad Rendering and Impression/Click Tracking](#ad-rendering-and-impressionclick-tracking)
-  - [Enums](#enums)
-  - [Development Environment](#development-environment)
-    - [Database Seeds](#database-seeds)
-    - [Tmux/Teamocil or Mert](#tmuxteamocil-or-mert)
+    - [Ad Rendering and Impression/Click Tracking](#ad-rendering-and-impressionclick-tracking)
+  - [Development](#development)
+    - [Prerequisites](#prerequisites)
+    - [Setup](#setup)
+      - [Development Caching](#development-caching)
+    - [Database](#database)
+    - [Maxmind](#maxmind)
+    - [Workspace Setup](#workspace-setup)
+      - [Tmux](#tmux)
+      - [Teamocil](#teamocil)
+      - [Mert](#mert)
   - [Code Standards](#code-standards)
+    - [Enums](#enums)
+    - [Linting](#linting)
   - [Deployment](#deployment)
     - [Preboot](#preboot)
     - [Scheduler](#scheduler)
-    - [Database](#database)
-  - [Maxmind](#maxmind)
+    - [Database](#database-1)
+  - [Instrumentation](#instrumentation)
   - [Candidates for GEM extraction](#candidates-for-gem-extraction)
   - [Contributors](#contributors)
+  - [License](#license)
 
-<!-- Tocer[finish]: Auto-generated, don't remove. -->
+<!-- markdownlint-enable -->
+<!-- prettier-ignore-end -->
 
 ## Publisher JavaScript Embedding
 
 After being approved on the CodeFund platform,
-publishers can add CodeFund to their site by including the CodeFund script and adding the CodeFund `div`.
+publishers can add CodeFund ads to their site by including the CodeFund script and adding the CodeFund `div`.
 
 ```html
 <div id="codefund"></div>
-<script src="https://codefund.app/properties/PROPERTY_ID/funder.js" async="async" type="text/javascript"></script>
+<script src="https://codefund.app/properties/PROPERTY_ID/funder.js" async></script>
 ```
 
 ### Optional Query String Parameters
@@ -62,25 +88,27 @@ You may want to perform a function if the embed function does not return an ad.
 
 To do this, you must create an event listener for the window event `codefund`.
 
-Example:
+#### Example
 
 ```js
 window.addEventListener("codefund", function(evt) {
   if (evt.detail.status !== 'ok') {
-    // Do something else
     console.log(evt.detail.status);
+    // Do something
   }
 });
 ```
+
+#### Responses
 
 On a successful embed, `evt.detail` will return:
 
 ```json
 { "status": "ok", "house": false }
 
-or
+// or
 
-{ "status": "ok", "house": true } // Ad returned is a house ad
+{ "status": "ok", "house": true } // Ad returned is a house (fallback) ad
 ```
 
 If an error occurs with embedding the ad, `evt.detail` will return:
@@ -89,7 +117,7 @@ If an error occurs with embedding the ad, `evt.detail` will return:
 { "status": "error", "message": "error message" }
 ```
 
-And in the event that we do not have an available advertiser, you will see:
+In the event that we do not have an available advertiser, and thus no available (paid or fallback) ad, `evt.detail` will return:
 
 ```json
 { "status": "no-advertiser" }
@@ -102,9 +130,9 @@ The API is documented with [Blueprint](https://apiblueprint.org) and is [hosted 
 > NOTE: Apairy doesn't fully adhere to the [Blueprint 1A9 specification](https://github.com/apiaryio/api-blueprint/blob/format-1A9/API%20Blueprint%20Specification.md).
 > Our Blueprint file may deviate from the spec to satisfy Apiary limitations.
 
-https://github.com/gitcoinco/code_fund_ads/blob/master/BLUEPRINT.md
+The [online version](https://codefund.docs.apiary.io/#) is generated from [this file](https://github.com/gitcoinco/code_fund_ads/blob/master/BLUEPRINT.md).
 
-## Ad Rendering and Impression/Click Tracking
+### Ad Rendering and Impression/Click Tracking
 
 The URLs/routes responsible for ad rendering are:
 
@@ -129,36 +157,43 @@ The URLs/routes responsible for ad rendering are:
   This is the proxy/redirect URL that allows us to track the click.
   We immediately redirect to the advertiser's campaign URL and background the work to mark the associated impression as clicked.
 
-## Enums
+## Development
 
-All enum values are managed as constants defined in `config/enums.yml`
-This file is converted to Ruby constants at runtime.
+If you'd like to use Docker to run the app, view that documentation [here](docs/docker_development).
 
-Introspect what enums are defined via the cli.
+The following is for setting the app up on your local machine:
 
-```ruby
-ENUMS.constants
-ENUMS::USER_ROLES.constants
-# etc...
-```
+### Prerequisites
 
-**Always use enums instead of "magic" values.**
-
-## Development Environment
-
-###### Prerequisites
-
-- ruby version `2.6.4` via [rbenv](https://github.com/rbenv/rbenv)
-- NodeJS version `<12.0.0` via [nvm](https://github.com/nvm-sh/nvm) with yarn installed globally
-- graphviz `brew install graphviz` or `sudo apt-get install graphviz`
+- Ruby version `2.6.6`
+  - [rbenv](https://github.com/rbenv/rbenv)
+  - [asdf](https://github.com/asdf-vm/asdf-ruby)
+- NodeJS version `13.11.0`
+  - [nvm](https://github.com/nvm-sh/nvm)
+  - [asdf](https://github.com/asdf-vm/asdf-nodejs)
+- Bundler version `2.1.4`
+  - `gem install bundler`
+- Yarn
+  - Mac: [instructions](https://yarnpkg.com/lang/en/docs/install/#mac-stable)
+  - Ubuntu: [instructions](https://yarnpkg.com/lang/en/docs/install/#debian-stable)
+- graphviz
+  - Mac: `brew install graphviz`
+  - Ubuntu: `sudo apt-get install graphviz`
 - PostgreSQL 11
+  - Mac: [instructions](https://wiki.postgresql.org/wiki/Homebrew)
+  - Ubuntu: [instructions](https://itsfoss.com/install-postgresql-ubuntu/)
 - Redis
+  - Mac: `brew install redis && brew services start redis`
+  - Ubuntu: [instructions](https://redis.io/topics/quickstart)
 
-You must create a (superuser) role with the name of your OS user in your postgres configuration in order to run db operations (e.g. testing and development).
+>You must create a (superuser) role with the name of your OS user in your postgres configuration in order to run db operations (e.g. testing and development).
+
+### Setup
 
 ```sh
+# clone the repo & cd into the project
 git clone https://github.com/gitcoinco/code_fund_ads.git
-cd /path/to/project
+cd /path/to/code_fund_ads
 
 # setup environment variables
 cp .env-example .env
@@ -173,52 +208,100 @@ yarn install
 rails db:create db:migrate
 rails test
 
+# enable development caching
+rails dev:cache
+
 # start app and navigate to http://localhost:3000
 rails s
 ```
 
-It is recommended to develop with Rails cache enabled. This application relies heavily
-on caching and may not work properly without the cache enabled.
+#### Development Caching
+
+This application relies heavily on caching and will not work properly without the development cache enabled.
 
 ```sh
 bundle exec rails dev:cache # => Development mode is now being cached.
 ```
 
-### Database Seeds
+### Database
 
 The `impressions` table will seed with approximately 100k records spread over 12 months by default.
 You can increase this by setting the `IMPRESSIONS` environment variable and seeding again.
 
-```
+```sh
 IMPRESSIONS=10_000_000 rails db:seed
 ```
 
-### Tmux/Teamocil or Mert
+### Maxmind
 
-You may want to create a [teamocil](https://github.com/remiprev/teamocil)/[tmux](https://github.com/tmux/tmux) config for your machine.
+This product includes GeoLite data created by MaxMind, available from: http://www.maxmind.com
 
-SEE: https://github.com/gitcoinco/code_fund_ads/blob/master/.teamocil-example.yml
+The GeoLite2-City.tar.gz is checked into this repo at `db/maxmind/GeoLite2-City.tar.gz`
+
+A fresh copy of the GeoLite2-City.tar.gz file can be obtained by running one of the following commands.
 
 ```sh
-cd /path/to/project
+rails maxmind:download
+```
+
+```ruby
+DownloadAndExtractMaxmindFileJob.new.download
+```
+
+### Workspace Setup
+
+We provide a few example files for some popular tools to help you get up an running.
+
+#### [Tmux](https://github.com/tmux/tmux)
+
+SEE: [sample config file](https://github.com/gitcoinco/code_fund_ads/blob/master/.tmuxinator-example.yml)
+
+```sh
+cd /path/to/code_fund_ads
+./bin/tmuxinator
+```
+
+#### [Teamocil](https://github.com/remiprev/teamocil)
+
+SEE: [sample config file](https://github.com/gitcoinco/code_fund_ads/blob/master/.teamocil-example.yml)
+
+```sh
+cd /path/to/code_fund_ads
 ./bin/teamocil
 ```
 
-Alternatively, you may want to create a [mert](https://github.com/eggplanetio/mert) config for your machine to be used with iTerm.
+#### [Mert](https://github.com/eggplanetio/mert)
 
-SEE: https://github.com/gitcoinco/code_fund_ads/blob/master/.mert-example.yml
+SEE: [sample config file](https://github.com/gitcoinco/code_fund_ads/blob/master/.mert-example.yml)
 
 ```sh
-cd /path/to/project
+cd /path/to/code_fund_ads
 ./bin/mert
 ```
 
 ## Code Standards
 
+### Enums
+
+All enum values are managed as constants defined in `config/enums.yml`
+This file is converted to Ruby constants at runtime.
+
+Introspect what enums are defined via the cli.
+
+```ruby
+ENUMS.constants
+ENUMS::USER_ROLES.constants
+# etc...
+```
+
+**Always use enums instead of "magic" values.**
+
+### Linting
+
 We avoid [bike shedding](https://en.wikipedia.org/wiki/Law_of_triviality) by enforcing coding standards through tooling.
 
 - Ruby - [standard](https://github.com/testdouble/standard)
-- JavaScript - [prettier](https://github.com/prettier/prettier)
+- JavaScript - [prettier-standard](https://github.com/sheerun/prettier-standard)
 
 Ensure the code has been standardized by running the following before you commit.
 
@@ -231,7 +314,7 @@ Ensure the code has been standardized by running the following before you commit
 All pushes of master to Github result in a deployment to the staging environment.
 We use Herou build pipelines to promote the deployment to environments like production.
 
-```
+```sh
 ./bin/heroku_promote
 ```
 
@@ -263,29 +346,15 @@ We manage this with [Heroku Scheduler](https://devcenter.heroku.com/articles/sch
 - The `impressions` table is dynamically partitioned by **advertiser** (i.e. `user`) and **date**
 - The database user requires permissions to execute DDL and create schema to support dynamic partition tables
 
-## Maxmind
-
-This product includes GeoLite data created by MaxMind, available from: http://www.maxmind.com
-
-The GeoLite2-City.tar.gz is checked into this repo at `db/maxmind/GeoLite2-City.tar.gz`
-
-A fresh copy of the GeoLite2-City.tar.gz file can be obtained by running one of the following commands.
-
-```sh
-rails maxmind:download
-```
-
-```ruby
-DownloadAndExtractMaxmindFileJob.new.download
-```
-
 ## Instrumentation
 
 CodeFund uses a self-hosted version of [count.ly](https://count.ly/) to gather and analyze data. This data does not include any personal identifiable information.
 
 The pattern in which to instrument CodeFund with is as follows:
 
-    CodeFundAds::Events.track(:action, :device_id, :segmentation)
+```ruby
+CodeFundAds::Events.track(:action, :device_id, :segmentation)
+```
 
 Each variable can be the following value:
 
@@ -325,9 +394,43 @@ CodeFundAds::Events.track("Find Fallback Campaign", session.id, {
 Thanks goes to these wonderful people ([emoji key](https://github.com/kentcdodds/all-contributors#emoji-key)):
 
 <!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- prettier-ignore -->
-| [<img src="https://avatars2.githubusercontent.com/u/32920?v=4" width="100px;"/><br /><sub><b>Nathan Hopkins</b></sub>](https://twitter.com/@hopsoft)<br />[💻](https://github.com/gitcoinco/code_fund_ads/commits?author=hopsoft "Code") [📖](https://github.com/gitcoinco/code_fund_ads/commits?author=hopsoft "Documentation") [🤔](#ideas-hopsoft "Ideas, Planning, & Feedback") [🚇](#infra-hopsoft "Infrastructure (Hosting, Build-Tools, etc)") [📦](#platform-hopsoft "Packaging/porting to new platform") [👀](#review-hopsoft "Reviewed Pull Requests") | [<img src="https://avatars2.githubusercontent.com/u/12481?v=4" width="100px;"/><br /><sub><b>Eric Berry</b></sub>](https://codefund.io)<br />[💻](https://github.com/gitcoinco/code_fund_ads/commits?author=coderberry "Code") [📖](https://github.com/gitcoinco/code_fund_ads/commits?author=coderberry "Documentation") [🤔](#ideas-coderberry "Ideas, Planning, & Feedback") [🚇](#infra-coderberry "Infrastructure (Hosting, Build-Tools, etc)") [📦](#platform-coderberry "Packaging/porting to new platform") [👀](#review-coderberry "Reviewed Pull Requests") | [<img src="https://avatars3.githubusercontent.com/u/5496174?v=4" width="100px;"/><br /><sub><b>Ron Cooke</b></sub>](http://thebrascode.com)<br />[💻](https://github.com/gitcoinco/code_fund_ads/commits?author=brascoder "Code") [📖](https://github.com/gitcoinco/code_fund_ads/commits?author=brascoder "Documentation") | [<img src="https://avatars2.githubusercontent.com/u/423811?v=4" width="100px;"/><br /><sub><b>Mike</b></sub>](https://github.com/barbeque)<br />[📖](https://github.com/gitcoinco/code_fund_ads/commits?author=barbeque "Documentation") | [<img src="https://avatars2.githubusercontent.com/u/7039523?v=4" width="100px;"/><br /><sub><b>Arun Kumar</b></sub>](https://github.com/arku)<br />[📖](https://github.com/gitcoinco/code_fund_ads/commits?author=arku "Documentation") [💻](https://github.com/gitcoinco/code_fund_ads/commits?author=arku "Code") | [<img src="https://avatars1.githubusercontent.com/u/8299599?v=4" width="100px;"/><br /><sub><b>Maxim Dzhuliy</b></sub>](http://max-si-m.github.io)<br />[📖](https://github.com/gitcoinco/code_fund_ads/commits?author=max-si-m "Documentation") | [<img src="https://avatars1.githubusercontent.com/u/18423853?v=4" width="100px;"/><br /><sub><b>Andrew Mason</b></sub>](https://www.andrewmason.me/)<br />[💻](https://github.com/gitcoinco/code_fund_ads/commits?author=andrewmcodes "Code") [🎨](#design-andrewmcodes "Design") |
-| :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+<!-- prettier-ignore-start -->
+<!-- markdownlint-disable -->
+<table>
+  <tr>
+    <td align="center"><a href="https://twitter.com/@hopsoft"><img src="https://avatars2.githubusercontent.com/u/32920?v=4" width="100px;" alt=""/><br /><sub><b>Nathan Hopkins</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=hopsoft" title="Code">💻</a> <a href="https://github.com/gitcoinco/code_fund_ads/commits?author=hopsoft" title="Documentation">📖</a> <a href="#ideas-hopsoft" title="Ideas, Planning, & Feedback">🤔</a> <a href="#infra-hopsoft" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="#platform-hopsoft" title="Packaging/porting to new platform">📦</a> <a href="#plugin-hopsoft" title="Plugin/utility libraries">🔌</a> <a href="#projectManagement-hopsoft" title="Project Management">📆</a> <a href="https://github.com/gitcoinco/code_fund_ads/pulls?q=is%3Apr+reviewed-by%3Ahopsoft" title="Reviewed Pull Requests">👀</a> <a href="https://github.com/gitcoinco/code_fund_ads/commits?author=hopsoft" title="Tests">⚠️</a> <a href="#tool-hopsoft" title="Tools">🔧</a></td>
+    <td align="center"><a href="https://codefund.io"><img src="https://avatars2.githubusercontent.com/u/12481?v=4" width="100px;" alt=""/><br /><sub><b>Eric Berry</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=coderberry" title="Code">💻</a> <a href="#design-coderberry" title="Design">🎨</a> <a href="https://github.com/gitcoinco/code_fund_ads/commits?author=coderberry" title="Documentation">📖</a> <a href="#ideas-coderberry" title="Ideas, Planning, & Feedback">🤔</a> <a href="#infra-coderberry" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="#platform-coderberry" title="Packaging/porting to new platform">📦</a> <a href="#projectManagement-coderberry" title="Project Management">📆</a> <a href="https://github.com/gitcoinco/code_fund_ads/pulls?q=is%3Apr+reviewed-by%3Acoderberry" title="Reviewed Pull Requests">👀</a> <a href="https://github.com/gitcoinco/code_fund_ads/commits?author=coderberry" title="Tests">⚠️</a></td>
+    <td align="center"><a href="http://thebrascode.com"><img src="https://avatars3.githubusercontent.com/u/5496174?v=4" width="100px;" alt=""/><br /><sub><b>Ron Cooke</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=brascoder" title="Code">💻</a> <a href="https://github.com/gitcoinco/code_fund_ads/commits?author=brascoder" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/barbeque"><img src="https://avatars2.githubusercontent.com/u/423811?v=4" width="100px;" alt=""/><br /><sub><b>Mike</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=barbeque" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/arku"><img src="https://avatars2.githubusercontent.com/u/7039523?v=4" width="100px;" alt=""/><br /><sub><b>Arun Kumar</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=arku" title="Code">💻</a> <a href="https://github.com/gitcoinco/code_fund_ads/commits?author=arku" title="Documentation">📖</a></td>
+    <td align="center"><a href="http://max-si-m.github.io"><img src="https://avatars1.githubusercontent.com/u/8299599?v=4" width="100px;" alt=""/><br /><sub><b>Maxim Dzhuliy</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=max-si-m" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://www.andrewmason.me/"><img src="https://avatars1.githubusercontent.com/u/18423853?v=4" width="100px;" alt=""/><br /><sub><b>Andrew Mason</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=andrewmcodes" title="Code">💻</a> <a href="#design-andrewmcodes" title="Design">🎨</a> <a href="https://github.com/gitcoinco/code_fund_ads/commits?author=andrewmcodes" title="Documentation">📖</a> <a href="#infra-andrewmcodes" title="Infrastructure (Hosting, Build-Tools, etc)">🚇</a> <a href="https://github.com/gitcoinco/code_fund_ads/pulls?q=is%3Apr+reviewed-by%3Aandrewmcodes" title="Reviewed Pull Requests">👀</a> <a href="https://github.com/gitcoinco/code_fund_ads/commits?author=andrewmcodes" title="Tests">⚠️</a> <a href="#tool-andrewmcodes" title="Tools">🔧</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="http://glamanate.com"><img src="https://avatars3.githubusercontent.com/u/3698644?v=4" width="100px;" alt=""/><br /><sub><b>Matt Glaman</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=mglaman" title="Code">💻</a> <a href="https://github.com/gitcoinco/code_fund_ads/commits?author=mglaman" title="Tests">⚠️</a></td>
+    <td align="center"><a href="https://github.com/thelostone-mc"><img src="https://avatars2.githubusercontent.com/u/5358146?v=4" width="100px;" alt=""/><br /><sub><b>Aditya Anand M C</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=thelostone-mc" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://github.com/dcd018"><img src="https://avatars1.githubusercontent.com/u/13059244?v=4" width="100px;" alt=""/><br /><sub><b>dcd018</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=dcd018" title="Code">💻</a></td>
+    <td align="center"><a href="http://dahal.github.io"><img src="https://avatars0.githubusercontent.com/u/3684236?v=4" width="100px;" alt=""/><br /><sub><b>Puru Dahal</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=dahal" title="Code">💻</a></td>
+    <td align="center"><a href="http://blog.curtis-mckee.com"><img src="https://avatars0.githubusercontent.com/u/7895798?v=4" width="100px;" alt=""/><br /><sub><b>Curtis Mckee</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=cmckee-dev" title="Tests">⚠️</a> <a href="https://github.com/gitcoinco/code_fund_ads/commits?author=cmckee-dev" title="Code">💻</a> <a href="#design-cmckee-dev" title="Design">🎨</a></td>
+    <td align="center"><a href="https://github.com/jeremigendron/contract"><img src="https://avatars2.githubusercontent.com/u/23587429?v=4" width="100px;" alt=""/><br /><sub><b>jeremiG</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=JeremiGendron" title="Documentation">📖</a></td>
+    <td align="center"><a href="http://logichub.co.uk"><img src="https://avatars0.githubusercontent.com/u/6245858?v=4" width="100px;" alt=""/><br /><sub><b>Kashif Rafique</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=logichub" title="Code">💻</a></td>
+  </tr>
+  <tr>
+    <td align="center"><a href="https://ethan.link"><img src="https://avatars1.githubusercontent.com/u/14034891?v=4" width="100px;" alt=""/><br /><sub><b>Ethan</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=Booligoosh" title="Documentation">📖</a></td>
+    <td align="center"><a href="https://xhmikosr.io/"><img src="https://avatars2.githubusercontent.com/u/349621?v=4" width="100px;" alt=""/><br /><sub><b>XhmikosR</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=XhmikosR" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/JasonBarnabe"><img src="https://avatars3.githubusercontent.com/u/583995?v=4" width="100px;" alt=""/><br /><sub><b>Jason Barnabe</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=JasonBarnabe" title="Code">💻</a></td>
+    <td align="center"><a href="https://github.com/woto"><img src="https://avatars0.githubusercontent.com/u/146704?v=4" width="100px;" alt=""/><br /><sub><b>Руслан Корнев</b></sub></a><br /><a href="https://github.com/gitcoinco/code_fund_ads/commits?author=woto" title="Code">💻</a></td>
+  </tr>
+</table>
+
+<!-- markdownlint-enable -->
+<!-- prettier-ignore-end -->
 <!-- ALL-CONTRIBUTORS-LIST:END -->
 
 This project follows the [all-contributors](https://github.com/kentcdodds/all-contributors) specification. Contributions of any kind welcome!
+
+## License
+
+[AGPL-3.0](LICENSE)
+
+[![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fgitcoinco%2Fcode_fund_ads.svg?type=large)](https://app.fossa.io/projects/git%2Bgithub.com%2Fgitcoinco%2Fcode_fund_ads?ref=badge_large)

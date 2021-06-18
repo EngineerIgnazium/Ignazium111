@@ -1,5 +1,4 @@
 class AdvertisementsController < ApplicationController
-  include AdRenderable
   include Untrackable
 
   protect_from_forgery except: :show
@@ -8,33 +7,40 @@ class AdvertisementsController < ApplicationController
   # before_action :apply_visitor_rate_limiting
   before_action :set_campaign
   before_action :set_virtual_impression_id
-  after_action :create_virtual_impression, if: :standard?
+  after_action :create_virtual_impression
   # after_action :cache_visitor_response
 
-  def show
-    track_event :virtual_impression_initiated unless sponsor?
+  helper_method :template_name, :theme_name
 
-    # TODO: deprecate legacy support on 2019-04-01
+  def show
+    return head(:forbidden) unless valid_referer?
+
+    track_event :virtual_impression_initiated
+
+    # DEPRECATE: deprecate legacy support on 2019-04-01
     return render_legacy_show if legacy_api_call?
 
     set_advertisement_variables
 
     respond_to do |format|
       format.js
-      format.svg { render inline: @advertisement_html || catch_all_sponsor_html, status: :ok, layout: false }
-      format.json { render "/advertisements/show", status: @advertisement_html ? :ok : :not_found, layout: false }
-      format.html { render "/advertisements/show", status: @advertisement_html ? :ok : :not_found, layout: false }
+      format.json { render "/advertisements/show", status: @creative ? :ok : :not_found, layout: false }
+      format.html { render "/advertisements/show", status: @creative ? :ok : :not_found, layout: false }
+      format.svg { head :no_content }
     end
   end
 
   protected
 
-  def standard?
-    !sponsor?
-  end
+  def valid_referer?
+    return true unless Rails.env.production?
 
-  def sponsor?
-    request.format == "svg"
+    begin
+      return true if request.referer.nil?
+      ENUMS::BLOCK_LIST.values.exclude? URI.parse(request.referer)&.host
+    rescue URI::InvalidURIError
+      true
+    end
   end
 
   # def visitor_cache_key
@@ -61,11 +67,6 @@ class AdvertisementsController < ApplicationController
   #   )
   # end
 
-  def catch_all_sponsor_html
-    key = "Creative/sponsor-catch-all"
-    Rails.cache.fetch(key) { File.read(Rails.root.join("app/assets/images/sponsor-catch-all.svg")) }
-  end
-
   def set_advertisement_variables
     @target = params[:target] || "codefund_ad"
     return unless @campaign
@@ -73,21 +74,13 @@ class AdvertisementsController < ApplicationController
     @creative = choose_creative(@virtual_impression_id, @campaign)
     return unless @creative
 
-    if sponsor?
-      return @advertisement_html = begin
-        key = "#{@creative.cache_key_with_version}/#{@creative.sponsor_image&.cache_key}"
-        Rails.cache.fetch(key) { @creative.sponsor_image.download }
-      end
-    end
-
-    @advertisement_html = render_advertisement
     @campaign_url = advertisement_clicks_url(
       @virtual_impression_id,
       campaign_id: @campaign.id,
       creative_id: @creative.id,
       property_id: property.id,
       template: template_name,
-      theme: theme_name,
+      theme: theme_name
     )
     @impression_url = impression_url(@virtual_impression_id, format: :gif)
     @powered_by_url = referral_code ? invite_url(referral_code) : root_url
@@ -102,13 +95,13 @@ class AdvertisementsController < ApplicationController
     end
   end
 
-  # TODO: deprecate legacy support on 2019-04-01
+  # DEPRECATE: deprecate legacy support on 2019-04-01
   def legacy_api_call?
     return false unless request.format.json?
     request.path.start_with?("/api/v1/impression", "/t/s/")
   end
 
-  # TODO: deprecate legacy support on 2019-04-01
+  # DEPRECATE: deprecate legacy support on 2019-04-01
   def render_legacy_show
     if @campaign && (@creative = choose_creative(@virtual_impression_id, @campaign))
       @campaign_url = advertisement_clicks_url(@virtual_impression_id, campaign_id: @campaign.id)
@@ -120,12 +113,16 @@ class AdvertisementsController < ApplicationController
     render "/advertisements/legacy_show"
   end
 
-  # TODO: Wrap this IP assignment to only be allowed when API is enabled for
+  # DEPRECATE: Wrap this IP assignment to only be allowed when API is enabled for
   #       the publisher instead of using the legacy_property_id as a qualifier
   def ip_address
-    @ip_address ||= params[:legacy_property_id].present? ?
-      (params[:ip_address] || request.remote_ip) :
-      request.remote_ip
+    @ip_address ||= begin
+      if property.can_pass_ip_address? && params[:legacy_property_id].present?
+        params[:ip_address] || request.remote_ip
+      else
+        request.remote_ip
+      end
+    end
   end
 
   def ip_info
@@ -134,6 +131,9 @@ class AdvertisementsController < ApplicationController
 
   def country_code
     return params[:test_country_code] if Rails.env.test? && params.key?(:test_country_code)
+    return request.headers["Cf-Ipcountry"] if request.headers["Cf-Ipcountry"].present?
+
+    # Fallback to Maxmind if Cloudflare header is missing
     iso_code = ip_info&.country&.iso_code
     return nil unless iso_code
     Country.find(iso_code)&.iso_code
@@ -169,7 +169,7 @@ class AdvertisementsController < ApplicationController
     hour.between? prohibited_hour_start, prohibited_hour_end
   end
 
-  # TODO: deprecate legacy support on 2019-04-01
+  # DEPRECATE: deprecate legacy support on 2019-04-01
   def property_id
     params[:legacy_property_id] ||= params[:property_id] if /[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89aAbB][a-f0-9]{3}-[a-f0-9]{12}/.match?(params[:property_id].to_s)
 
@@ -200,11 +200,11 @@ class AdvertisementsController < ApplicationController
   end
 
   def fallback_template_name
-    @fallback_template_name ||= ENUMS::AD_TEMPLATES[property&.fallback_ad_template] || premium_template_name
+    @fallback_template_name ||= ENUMS::AD_TEMPLATES[params[:template] || property&.fallback_ad_template] || premium_template_name
   end
 
   def fallback_theme_name
-    @fallback_theme_name ||= ENUMS::AD_THEMES[property&.fallback_ad_theme] || premium_theme_name
+    @fallback_theme_name ||= ENUMS::AD_THEMES[params[:theme] || property&.fallback_ad_theme] || premium_theme_name
   end
 
   def keywords
@@ -219,13 +219,17 @@ class AdvertisementsController < ApplicationController
     (params[:ad_test] || params[:adtest]).to_s == "true" || !!request.local?
   end
 
+  def back_pressure?
+    Sidekiq::Queue.new(:impression).size > ENV.fetch("MAX_QUEUE_SIZE", 2500).to_i
+  end
+
   def set_campaign
     return nil if device.bot?
     return nil unless property&.active? || property&.pending?
     return nil if device_small? && property.hide_on_responsive?
+    return nil if back_pressure?
 
-    campaign_relation = Campaign.active.with_active_creatives.available_on(Date.current)
-    campaign_relation = sponsor? ? campaign_relation.sponsor : campaign_relation.standard
+    campaign_relation = Campaign.active.available_on(Date.current)
     campaign_relation = campaign_relation.where(weekdays_only: false) if Date.current.on_weekend?
     campaign_relation = campaign_relation.where(core_hours_only: false) if prohibited_hour?
     geo_targeted_campaign_relation = campaign_relation
@@ -233,8 +237,13 @@ class AdvertisementsController < ApplicationController
       .targeted_province_code(province_code)
 
     @campaign = get_premium_campaign(geo_targeted_campaign_relation) if property.active? && ad_test? == false
+
+    return if property.prohibit_fallback_campaigns?
+
+    @campaign ||= get_paid_fallback_campaign if rand < ENV.fetch("PAID_FALLBACK_PERCENT", 90).to_f / 100
     @campaign ||= get_fallback_campaign(geo_targeted_campaign_relation)
     @campaign ||= get_fallback_campaign(campaign_relation)
+    @campaign ||= get_paid_fallback_campaign
   end
 
   def get_premium_campaign(campaign_relation)
@@ -248,7 +257,7 @@ class AdvertisementsController < ApplicationController
         .or(campaign_relation.targeted_premium_for_property_id(property_id, *keywords))
     end
 
-    choose_campaign premium_campaign_relation, ignore_budgets: sponsor?
+    choose_campaign premium_campaign_relation
   end
 
   def get_fallback_campaign(campaign_relation)
@@ -263,14 +272,6 @@ class AdvertisementsController < ApplicationController
     # pre-selected fallback
     campaign = choose_campaign(fallback_campaign_relation, ignore_budgets: true)
 
-    # paid fallback
-    if rand < ENV.fetch("PAID_FALLBACK_PERCENT", 90).to_f / 100
-      campaign ||= begin
-        fallback_campaign_relation = campaign_relation.without_assigned_property_ids.paid_fallback
-        choose_campaign fallback_campaign_relation, ignore_budgets: true
-      end
-    end
-
     # unpaid fallback
     campaign ||= begin
       fallback_campaign_relation = campaign_relation.fallback_with_assigned_property_id(property_id)
@@ -284,10 +285,16 @@ class AdvertisementsController < ApplicationController
     campaign
   end
 
+  def get_paid_fallback_campaign
+    fallback_campaign_relation = Campaign.active.paid_fallback.available_on(Date.current)
+      .permitted_for_property_id(property_id).without_assigned_property_ids
+    choose_campaign fallback_campaign_relation, ignore_budgets: true
+  end
+
   def choose_campaign(campaign_relation, ignore_budgets: false)
     return campaign_relation.sample if ignore_budgets
 
-    campaigns = campaign_relation.joins(:organization).where(Organization.arel_table[:balance_cents].gt(0)).to_a
+    campaigns = campaign_relation.includes(:organization).to_a
     campaigns.select!(&:hourly_budget_available?)
     campaigns.sample
   end
@@ -304,11 +311,6 @@ class AdvertisementsController < ApplicationController
     Creative.active.find_by_split_test_name split_alternative.name
   end
 
-  def render_advertisement
-    key = "#{@campaign.cache_key_with_version}/#{@creative.cache_key_with_version}/#{template_cache_key}/#{theme_cache_key}"
-    Rails.cache.fetch(key) { render_advertisement_html template, theme, html: request.format.html? }
-  end
-
   def set_virtual_impression_id
     @virtual_impression_id ||= SecureRandom.uuid
   end
@@ -321,12 +323,11 @@ class AdvertisementsController < ApplicationController
       creative: @creative,
       ad_template: template_name,
       ad_theme: theme_name,
-      country_code: country_code,
+      country_code: country_code
     ).track_event(event_name)
   end
 
   def create_virtual_impression
-    return unless standard?
     return unless @campaign && @creative
 
     Rails.cache.write @virtual_impression_id, {
@@ -336,6 +337,7 @@ class AdvertisementsController < ApplicationController
       ad_template: template_name,
       ad_theme: theme_name,
       ip_address: ip_address,
+      country_code: country_code
     }, expires_in: 30.seconds
 
     track_event :virtual_impression_created

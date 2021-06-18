@@ -3,11 +3,15 @@ module Users
     extend ActiveSupport::Concern
 
     def scoped_name
-      [organization&.name, full_name].compact.join "・"
+      [default_organization&.name, full_name].compact.join "·"
     end
 
     def full_name
       [first_name, last_name].compact.join " "
+    end
+
+    def initials
+      [first_name[0], last_name[0]].compact.join.upcase
     end
 
     alias name full_name
@@ -16,8 +20,8 @@ module Users
       Digest::MD5.hexdigest(email.downcase)
     end
 
-    def gravatar_url(d = "identicon")
-      "https://www.gravatar.com/avatar/#{hashed_email}?s=300&d=#{d}"
+    def gravatar_url(d = "identicon", s = "300")
+      "https://www.gravatar.com/avatar/#{hashed_email}?s=#{s}&d=#{d}"
     end
 
     def display_region

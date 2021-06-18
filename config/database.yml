@@ -1,20 +1,38 @@
 default: &default
   adapter: postgresql
   encoding: unicode
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS", 10).to_i %>
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS", 5).to_i %>
   timeout: <%= ENV.fetch("PG_TIMEOUT_IN_SECONDS", 3).to_i.seconds %>
+  username: <%= ENV['PG_USERNAME'] %>
+  password: <%= ENV['PG_PASSWORD'] %>
 
 development:
-  <<: *default
-  host: localhost
-  database: <%= ENV.fetch("PG_DATABASE_NAME", "code_fund_ads_development") %>
+  primary: &development_primary
+    <<: *default
+    host: <%= ENV.fetch("PG_HOST", "localhost") %>
+    port: <%= ENV.fetch("PG_PORT", 5432).to_i %>
+    database: <%= ENV.fetch("PG_DATABASE_NAME", "code_fund_ads_development") %>
+  primary_replica:
+    <<: *development_primary
+    replica: true
 
 test:
-  <<: *default
-  host: localhost
-  database: code_fund_ads_test
+  primary: &test_primary
+    <<: *default
+    host: <%= ENV.fetch("PG_HOST", "localhost") %>
+    port: <%= ENV.fetch("PG_PORT", 5432).to_i %>
+    database: code_fund_ads_test
+  primary_replica:
+    <<: *test_primary
+    replica: true
 
 production:
-  <<: *default
-  prepared_statements: false # See https://edgeguides.rubyonrails.org/configuring.html#configuring-a-postgresql-database
-  url: <%= ENV["DATABASE_URL"] %>
+  primary:
+    <<: *default
+    prepared_statements: false # See https://edgeguides.rubyonrails.org/configuring.html#configuring-a-postgresql-database
+    url: <%= ENV["DATABASE_URL"] %>
+  primary_replica:
+    <<: *default
+    prepared_statements: false
+    url: <%= ENV["HEROKU_ENV"] == "staging" ? ENV["DATABASE_URL"] : ENV["METABASE_URL"] %>
+    replica: true

@@ -1,10 +1,13 @@
 class CampaignCountriesController < ApplicationController
+  include Campaigns::Stashable
+
   before_action :authenticate_user!
   before_action :set_campaign
 
   def index
     @summary = @campaign.summary(@start_date, @end_date)
-    @reports = @campaign.daily_summary_reports_by_country_code(@start_date, @end_date)
+    reports = @campaign.daily_summary_reports_by_country_code(@start_date, @end_date)
+    @pagy, @reports = pagy_arel(reports)
 
     respond_to do |format|
       format.html
@@ -23,7 +26,7 @@ class CampaignCountriesController < ApplicationController
     @campaign = if authorized_user.can_admin_system?
       Campaign.find(params[:campaign_id])
     else
-      current_user.campaigns.find(params[:campaign_id])
+      Current.organization&.campaigns&.find(params[:campaign_id])
     end
   end
 end

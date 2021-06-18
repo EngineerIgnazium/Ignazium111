@@ -49,46 +49,54 @@
 #   pry>ENUMS::USER_ROLES.administrator? :publisher     # false
 #   pry>ENUMS::USER_ROLES["administrator"]              # administrator
 #
-#   ----------------------------------------------------------------------------
-#
-#   CAMPAIGN_STATUSES:
-#     1: pending
-#     2: active
-#     3: archived
-#
-#   The YAML above will be converted to the following enums
-#
-#   pry>ENUMS::CAMPAIGN_STATUSES::PENDING    # 1
-#   pry>ENUMS::CAMPAIGN_STATUSES::ACTIVE     # 2
-#   pry>ENUMS::CAMPAIGN_STATUSES::ARCHIVED   # 3
-#
-#   pry>ENUMS::CAMPAIGN_STATUSES.keys        # [1, 2, 3]
-#   pry>ENUMS::CAMPAIGN_STATUSES.values      # [pending, active, archived]
-#   pry>ENUMS::CAMPAIGN_STATUSES.pending? 1  # true
-#   pry>ENUMS::CAMPAIGN_STATUSES.pending? 2  # false
-#   pry>ENUMS::CAMPAIGN_STATUSES["active"]   # 2
-#   pry>ENUMS::CAMPAIGN_STATUSES[2]          # active
-#
+
+EMAIL_ADDRESSES:
+  eric: eric@codefund.io
+
+BLOCK_LIST:
+  - cstream1.com
+  - blockedurl.test
+
+ORGANIZATION_ROLES:
+  - administrator
+  - member
 
 USER_ROLES:
   - administrator
   - advertiser
   - employer
   - publisher
+  - account_manager
 
 USER_STATUSES:
   - active
   - blacklisted
 
+STATUS_COLORS:
+  accepted: success
+  active: success
+  archived: secondary
+  blacklisted: dark
+  configured: success
+  paused: info
+  pending: warning
+  rejected: danger
+  unconfigured: warning
+
+CAMPAIGN_PRICING_STRATEGIES:
+  - campaign
+  - region_and_audience
+
 CAMPAIGN_STATUSES:
-  - pending
+  - accepted
   - active
   - archived
+  - paused
+  - pending
 
-CAMPAIGN_STATUS_COLORS:
-  pending: warning
-  active: success
-  archived: muted
+CAMPAIGN_BUNDLE_STATUSES:
+  - configured
+  - unconfigured
 
 COUPON_TYPES:
   - percentage
@@ -102,6 +110,10 @@ CREATIVE_STATUSES:
   - active
   - archived
 
+EMAIL_DIRECTIONS:
+  - inbound
+  - outbound
+
 PROPERTY_TYPES:
   - website
   - repository
@@ -114,17 +126,20 @@ PROPERTY_STATUSES:
   - archived
   - blacklisted
 
-PROPERTY_STATUS_COLORS:
-  pending: warning
-  active: success
-  rejected: danger
-  archived: muted
-  blacklisted: dark
-
 PROPERTY_RESPONSIVE_BEHAVIORS:
   - none
   - footer
   - hide
+
+SCHEDULED_ORGANIZATION_REPORT_DATASETS:
+  - current_month
+  - past_7_days
+  - past_30_days
+  - yesterday
+
+SCHEDULED_ORGANIZATION_REPORT_FREQUENCIES:
+  - daily
+  - weekly
 
 # SEE: app/analyzers/creative_image_analyzer.rb
 IMAGE_FORMATS:
@@ -167,6 +182,10 @@ ORGANIZATION_SEARCH_DIRECTIONS:
   - positive
   - negative
   - zero
+
+ORGANIZATION_STATUSES:
+  - active
+  - inactive
 
 JOB_PLANS:
   - monthly
@@ -370,7 +389,7 @@ COUNTRIES:
   NU: Niue
   NF: Norfolk Island
   MP: Northern Mariana Islands
-  'NO': Norway
+  "NO": Norway
   OM: Oman
   PK: Pakistan
   PW: Palau
@@ -472,7 +491,7 @@ DEVELOPED_MARKET_COUNTRIES:
   JP: Japan
   NL: Netherlands
   NZ: New Zealand
-  'NO': Norway
+  "NO": Norway
   PT: Portugal
   SG: Singapore
   ES: Spain
@@ -571,28 +590,28 @@ LANGUAGES:
 
 KEYWORDS:
   # topics
-  'Android':
+  "Android":
     - android
-  'Angular':
+  "Angular":
     - angular
     - angularjs
-  'Backend':
+  "Backend":
     - architecture
     - backend
     - full stack
     - full-stack
-  'Blockchain':
+  "Blockchain":
     - blockchain
     - solidity
     - cryptography
-  'CSS & Design':
+  "CSS & Design":
     - css
     - design
     - ui
     - ux
-  'Cryptography':
+  "Cryptography":
     - cryptography
-  'Database':
+  "Database":
     - full stack
     - full-stack
     - graphql
@@ -600,13 +619,13 @@ KEYWORDS:
     - postgresql
     - postgres
     - mysql
-  'DevOps':
+  "DevOps":
     - devops
     - kubernetes
     - serverless
-  'Developer Resources':
+  "Developer Resources":
     - technical writing
-  'Frontend':
+  "Frontend":
     - front end
     - frontend
     - full stack
@@ -616,78 +635,78 @@ KEYWORDS:
     - react
     - angular
     - angularjs
-  'Game Development':
+  "Game Development":
     - game design
     - game dev
     - gaming
     - unity
-  'Hybrid & Mobile Web':
+  "Hybrid & Mobile Web":
     - electron
-  'IoT':
+  "IoT":
     - iot
     - internet of things
     - wireless
-  'Machine Learning':
+  "Machine Learning":
     - machine learning
-  'React':
+  "React":
     - react
     - react native
     - reactnative
-  'Security':
+  "Security":
     - infosec
     - network security
-  'Serverless':
+  "Serverless":
     - architecture
     - cloud
     - devops
     - kubernetes
     - microservices
     - serverless
-  'Virtual Reality':
+  "Virtual Reality":
     - virtual reality
     - vr
-  'VueJS':
+  "VueJS":
     - vuejs
     - vue
-  'iOS':
+  "iOS":
     - ios
 
   # programming languages
-  '.NET':
+  ".NET":
     - dot net
     - dotnet
     - .net
     - windows
-  'C':
+  "C":
     - c
     - c plus plus
-  'C#':
+  "C#":
     - c#
-  'C++':
+  "C++":
     - c++
     - c plus plus
-  'D':
+  "D":
     - d
-  'Dart':
+  "Dart":
     - dart
-  'Erlang':
+  "Erlang":
     - elixir
     - erlang
     - phoenix
-  'F#':
+  "F#":
     - f sharp
     - f#
-  'Go':
+  "Go":
     - go
     - golang
-  'Groovy':
+  "Groovy":
     - groovy
-  'Haskell':
+  "Haskell":
     - haskell
-  'Java':
+  "Java":
     - android
     - java
-  'JavaScript':
+  "JavaScript":
     - angularjs
     - electron
     - es6
@@ -697,36 +716,38 @@ KEYWORDS:
     - node
     - node js
     - node.js
-  'Julia':
+  "Julia":
     - julia
-  'Kotlin':
+  "Kotlin":
     - kotlin
-  'Objective-C':
+  "Objective-C":
     - objective-c
     - objective c
     - obj c
-  'PHP':
+  "PHP":
     - drupal
     - laravel
     - php
-  'PL/SQL':
+  "PL/SQL":
     - pl/sql
     - plsql
-  'Python':
+  "Python":
     - django
     - python
-  'Q':
+  "Q":
     - q
-  'R':
+  "R":
     - r
-  'Ruby':
+  "Ruby":
     - rails
     - ruby
-  'Rust':
+  "Rust":
     - rust
-  'Scala':
+  "Scala":
     - scala
-  'Swift':
+  "Solidity":
+    - solidity
+  "Swift":
     - swift
-  'Other':
+  "Other":
     - other

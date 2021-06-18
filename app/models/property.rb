@@ -3,36 +3,50 @@
 # Table name: properties
 #
 #  id                             :bigint           not null, primary key
-#  user_id                        :bigint           not null
-#  property_type                  :string           not null
-#  status                         :string           not null
-#  name                           :string           not null
-#  description                    :text
-#  url                            :text             not null
 #  ad_template                    :string
 #  ad_theme                       :string
-#  language                       :string           not null
-#  keywords                       :string           default([]), not null, is an Array
-#  prohibited_advertiser_ids      :bigint           default([]), not null, is an Array
-#  prohibit_fallback_campaigns    :boolean          default(FALSE), not null
-#  created_at                     :datetime         not null
-#  updated_at                     :datetime         not null
-#  legacy_id                      :uuid
-#  revenue_percentage             :decimal(, )      default(0.6), not null
 #  assigned_fallback_campaign_ids :bigint           default([]), not null, is an Array
-#  restrict_to_assigner_campaigns :boolean          default(FALSE), not null
+#  deleted_at                     :datetime
+#  description                    :text
 #  fallback_ad_template           :string
 #  fallback_ad_theme              :string
+#  keywords                       :string           default([]), not null, is an Array
+#  language                       :string           not null
+#  name                           :string           not null
+#  prohibit_fallback_campaigns    :boolean          default(FALSE), not null
+#  prohibited_organization_ids    :bigint           default([]), not null, is an Array
+#  property_type                  :string           default("website"), not null
 #  responsive_behavior            :string           default("none"), not null
-#  audience                       :string
+#  restrict_to_assigner_campaigns :boolean          default(FALSE), not null
+#  revenue_percentage             :decimal(, )      default(0.6), not null
+#  status                         :string           not null
+#  url                            :text             not null
+#  created_at                     :datetime         not null
+#  updated_at                     :datetime         not null
+#  audience_id                    :bigint
+#  legacy_id                      :uuid
+#  user_id                        :bigint           not null
+#
+# Indexes
+#
+#  index_properties_on_assigned_fallback_campaign_ids  (assigned_fallback_campaign_ids) USING gin
+#  index_properties_on_audience_id                     (audience_id)
+#  index_properties_on_keywords                        (keywords) USING gin
+#  index_properties_on_name                            (lower((name)::text))
+#  index_properties_on_prohibited_organization_ids     (prohibited_organization_ids) USING gin
+#  index_properties_on_property_type                   (property_type)
+#  index_properties_on_status                          (status)
+#  index_properties_on_user_id                         (user_id)
 #
 
 class Property < ApplicationRecord
   # extends ...................................................................
 
   # includes ..................................................................
+  include Properties::Chartable
   include Properties::Impressionable
   include Properties::Presentable
+  include Properties::Reportable
   include Eventable
   include Imageable
   include Impressionable
@@ -42,20 +56,22 @@ class Property < ApplicationRecord
 
   # relationships .............................................................
   belongs_to :user
-  has_many :property_advertisers, dependent: :destroy
+  belongs_to :audience, optional: true
   has_many :advertisers, through: :property_advertisers, class_name: "User", foreign_key: "advertiser_id"
+  has_many :pixel_conversions
+  has_many :property_advertisers, dependent: :destroy
   has_many :property_traffic_estimates, dependent: :destroy
 
   # validations ...............................................................
   # validates :ad_template, presence: true
   # validates :ad_theme, presence: true
-  validates :language, length: {maximum: 255, allow_blank: false}
-  validates :name, length: {maximum: 255, allow_blank: false}
+  validates :language, length: {maximum: 255}, allow_blank: false
+  validates :name, length: {maximum: 255}, allow_blank: false
   validates :property_type, inclusion: {in: ENUMS::PROPERTY_TYPES.values}
-  validates :status, inclusion: {in: ENUMS::PROPERTY_STATUSES.values}
   validates :responsive_behavior, inclusion: {in: ENUMS::PROPERTY_RESPONSIVE_BEHAVIORS.values}
-  validates :audience, inclusion: {in: Audience.all.map(&:name)}
-  validates :url, presence: true, url: true
+  validates :revenue_percentage, numericality: {less_than_or_equal_to: 1.0, greater_than_or_equal_to: 0}
+  validates :status, inclusion: {in: ENUMS::PROPERTY_STATUSES.values}
+  validates :url, url: true, presence: true
 
   # callbacks .................................................................
   before_validation :assign_audience
@@ -63,6 +79,7 @@ class Property < ApplicationRecord
   before_save :sanitize_assigned_fallback_campaign_ids
   after_save :generate_screenshot
   before_destroy :destroy_paper_trail_versions
+  before_destroy :validate_destroyable
 
   # scopes ....................................................................
   scope :active, -> { where status: ENUMS::PROPERTY_STATUSES::ACTIVE }
@@ -88,7 +105,7 @@ class Property < ApplicationRecord
   scope :for_campaign, ->(campaign) {
     relation = active.with_any_keywords(*campaign.keywords).without_any_keywords(*campaign.negative_keywords)
     relation = relation.where(prohibit_fallback_campaigns: false) if campaign.fallback?
-    relation = relation.without_all_prohibited_advertiser_ids(campaign.id)
+    relation = relation.without_all_prohibited_organization_ids(campaign.organization_id)
     relation
   }
   scope :with_assigned_fallback_campaign_id, ->(campaign_id) {
@@ -96,16 +113,24 @@ class Property < ApplicationRecord
     value_cast = Arel::Nodes::NamedFunction.new("CAST", [value.as("bigint[]")])
     where Arel::Nodes::InfixOperation.new("@>", arel_table[:assigned_fallback_campaign_ids], value_cast)
   }
+  scope :order_by_status, -> {
+                            order_by = ["CASE"]
+                            ENUMS::PROPERTY_STATUSES.values.each_with_index do |status, index|
+                              order_by << "WHEN status='#{status}' THEN #{index}"
+                            end
+                            order_by << "END"
+                            order(Arel.sql(order_by.join(" ")))
+                          }
 
   # Scopes and helpers provied by tag_columns
   # SEE: https://github.com/hopsoft/tag_columns
   #
-  # - with_all_prohibited_advertiser_ids
-  # - with_any_prohibited_advertiser_ids
-  # - with_prohibited_advertiser_ids
-  # - without_all_prohibited_advertiser_ids
-  # - without_any_prohibited_advertiser_ids
-  # - without_prohibited_advertiser_ids
+  # - with_all_prohibited_organization_ids
+  # - with_any_prohibited_organization_ids
+  # - with_prohibited_organization_ids
+  # - without_all_prohibited_organization_ids
+  # - without_any_prohibited_organization_ids
+  # - without_prohibited_organization_ids
   #
   # - with_all_keywords
   # - with_any_keywords
@@ -115,7 +140,7 @@ class Property < ApplicationRecord
   # - without_keywords
 
   # additional config (i.e. accepts_nested_attribute_for etc...) ..............
-  tag_columns :prohibited_advertiser_ids
+  tag_columns :prohibited_organization_ids
   tag_columns :keywords
   has_one_attached :screenshot
   acts_as_commentable
@@ -125,7 +150,7 @@ class Property < ApplicationRecord
     keywords
     language
     prohibit_fallback_campaigns
-    prohibited_advertiser_ids
+    prohibited_organization_ids
     name
     property_type
     status
@@ -139,6 +164,12 @@ class Property < ApplicationRecord
 
   # public instance methods ...................................................
 
+  attr_accessor :temporary_id
+
+  def to_stashable_attributes
+    as_json.merge temporary_id: temporary_id
+  end
+
   def host
     URI.parse(url).host
   end
@@ -149,6 +180,10 @@ class Property < ApplicationRecord
 
   def active?
     status == ENUMS::PROPERTY_STATUSES::ACTIVE
+  end
+
+  def archived?
+    status == ENUMS::PROPERTY_STATUSES::ARCHIVED
   end
 
   def pending?
@@ -173,7 +208,9 @@ class Property < ApplicationRecord
 
   def current_sponsor_campaign
     return nil unless restrict_to_sponsor_campaigns?
-    sponsor_campaigns.premium.available_on(Date.current).first || sponsor_campaigns.available_on(Date.current).first
+    sponsor_campaigns.premium.available_on(Date.current).first ||
+      Campaign.sponsor.fallback_with_assigned_property_id(id).available_on(Date.current).first ||
+      Campaign.sponsor.fallback.permitted_for_property_id(id).available_on(Date.current).first
   end
 
   def assigned_fallback_campaigns
@@ -184,10 +221,6 @@ class Property < ApplicationRecord
   def favicon_image_url
     domain = url.gsub(/^https?:\/\//, "")
     "//www.google.com/s2/favicons?domain=#{domain}"
-  end
-
-  def pretty_url
-    url.gsub(/^https?:\/\//, "").gsub("www.", "").split("/").first
   end
 
   def matching_campaigns
@@ -203,7 +236,25 @@ class Property < ApplicationRecord
   end
 
   def update_audience
-    update_columns audience: Audience.match(keywords).name
+    update_columns audience_id: Audience.match(keywords)&.id
+  end
+
+  def assign_keywords(force_audience_keywords: false)
+    return unless audience
+
+    original_keywords = keywords
+    audience_keywords = audience.keywords
+    force_audience_keywords ||= audience_id_changed? || original_keywords.blank?
+
+    self.keywords = if force_audience_keywords
+      audience_keywords
+    else
+      (original_keywords & audience_keywords).uniq.sort
+    end
+  end
+
+  def can_pass_ip_address?
+    ENV.fetch("API_BASED_PROPERTY_IDS", "").split(",").include?(id.to_s)
   end
 
   # protected instance methods ................................................
@@ -230,10 +281,18 @@ class Property < ApplicationRecord
 
   def assign_audience(force: false)
     self.audience = nil if force
-    self.audience ||= Audience.match(keywords).name
+    self.audience ||= Audience.match(keywords)
+    assign_keywords
+    audience
   end
 
   def assign_restrict_to_assigner_campaigns
     self.restrict_to_assigner_campaigns ||= restrict_to_sponsor_campaigns?
+  end
+
+  def validate_destroyable
+    return unless DailySummary.find_by(scoped_by_type: "Property", scoped_by_id: id)
+    errors.add :base, "Record has associated daily summaries, try archiving it instead."
+    throw :abort
   end
 end

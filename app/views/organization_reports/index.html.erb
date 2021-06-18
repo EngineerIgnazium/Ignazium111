@@ -1,14 +1,28 @@
-<%= render layout: "/organizations/show_layout", locals: { organization: @organization } do %>
-  <div class="d-flex mb-3">
-    <h3 class="h5 mb-3 flex-grow-1">
-      Reports
-      <small class="text-muted d-block">Generated PDF reports</small>
-    </h3>
-    <%= link_to new_organization_report_path(@organization), class: "btn btn-sm btn-success transition-3d-hover", style: "height: 42px;" do %>
-      <span class="fa fa-plus font-size-13 mr-2"></span>
-      Build Report
-    <% end %>
-  </div>
-
-  <%= render "/organization_reports/table", organization: @organization, organization_reports: @organization_reports, pagy: @pagy %>
+<%= render(PageComponent.new(subject: @organization, tabs: TabsComponent.new(tabs: organization_tabs(@organization)))) do |component| %>
+  <% component.with(:header) do %>
+    <%= render(Page::HeaderComponent.new(title: @organization.name, buttons: [
+      generate_organization_report_button(@organization.id)
+    ])) %>
+  <% end %>
+  <% component.with(:body) do %>
+    <div class="row">
+      <div class="col-md-6">
+        <%= render CardComponent.new do %>
+          <%= render Card::BodyComponent.new do %>
+            <%= render "/organization_reports/form",
+                organization: @organization,
+                organization_report: @organization_report,
+                url: organization_reports_path(@organization) %>
+          <% end %>
+        <% end %>
+      </div>
+      <div class="col-md-6">
+        <%= render "/organization_reports/table",
+            organization: @organization,
+            organization_reports: @organization_reports,
+            scheduled_organization_reports: @scheduled_organization_reports,
+            pagy: @pagy %>
+      </div>
+    </div>
+  <% end %>
 <% end %>

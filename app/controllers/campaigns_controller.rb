@@ -1,45 +1,38 @@
 class CampaignsController < ApplicationController
   include Sortable
+  include Campaigns::Stashable
 
   before_action :authenticate_user!
   before_action :authenticate_administrator!, only: [:destroy]
-  before_action :set_user, only: [:index], if: -> { params[:user_id].present? }
-  before_action :set_campaign_search, only: [:index]
-  before_action :set_campaign, only: [:show, :edit, :update, :destroy]
+  before_action :set_campaign, except: [:create, :index]
+  before_action :set_current_organization_for_admin, only: [:show, :edit]
+  before_action :authorize_edit!, only: [:edit, :update]
+  after_action -> { stash_campaign @campaign }, except: [:index, :destroy]
+
+  set_default_sorted_by :end_date
+  set_default_sorted_direction :desc
 
   def index
-    campaigns = Campaign.order(order_by).includes(:user, :creative, :organization)
-    if authorized_user.can_admin_system?
-      campaigns = campaigns.where(user: @user) if @user
-    else
-      campaigns = campaigns.where(user: current_user)
-    end
-    campaigns = @campaign_search.apply(campaigns)
-    @pagy, @campaigns = pagy(campaigns)
-
-    render "/campaigns/for_user/index" if @user
+    campaigns = Campaign.includes(:organization).where(organization: Current.organization).order(order_by)
+    @pagy, @campaigns = pagy(campaigns, page: @page)
   end
 
   def show
     set_meta_tags @campaign
-  end
 
-  def new
-    @campaign = current_user.campaigns.build(
-      status: "pending",
-      start_date: Date.tomorrow,
-      end_date: 30.days.from_now,
-      ecpm: Money.new(ENV.fetch("BASE_ECPM", 400).to_i, "USD")
-    )
+    payload = {
+      resource: {
+        dashboard: ENV["METABASE_CAMPAIGN_DASHBOARD_ID"].to_i
+      },
+      params: {
+        "campaign_id" => @campaign.id,
+        "start_date" => @start_date.strftime("%F"),
+        "end_date" => @end_date.strftime("%F")
+      }
+    }
+    token = JWT.encode payload, ENV["METABASE_SECRET_KEY"]
 
-    if params[:clone].present?
-      cloned_campaign = Campaign.find(params[:clone])
-      if cloned_campaign.present?
-        @campaign.attributes = cloned_campaign.attributes
-        @campaign.user = cloned_campaign.user
-        @campaign.status = "pending"
-      end
-    end
+    @iframe_url = ENV["METABASE_SITE_URL"] + "/embed/dashboard/" + token + "#bordered=false&titled=false"
   end
 
   def edit
@@ -63,8 +56,11 @@ class CampaignsController < ApplicationController
   end
 
   def update
+    status = @campaign.status
+
     respond_to do |format|
       if @campaign.update(campaign_params)
+        PausedCampaignNotificationJob.perform_later(campaign: @campaign, previous_status: status, user: current_user) unless authorized_user.can_admin_system?
         format.html { redirect_to @campaign, notice: "Campaign was successfully updated." }
         format.json { render :show, status: :ok, location: @campaign }
       else
@@ -75,44 +71,55 @@ class CampaignsController < ApplicationController
   end
 
   def destroy
-    @campaign.destroy
+    @campaign.update(status: ENUMS::CAMPAIGN_STATUSES::ARCHIVED)
     respond_to do |format|
-      format.html { redirect_to campaigns_url, notice: "Campaign was successfully destroyed." }
+      format.html { redirect_to campaigns_url, notice: "Campaign was successfully archived." }
       format.json { head :no_content }
     end
   end
 
-  private
-
-  def set_campaign_search
-    clear_searches except: :campaign_search
-    @campaign_search = GlobalID.parse(session[:campaign_search]).find if session[:campaign_search].present?
-    @campaign_search ||= CampaignSearch.new
-  end
+  protected
 
   def set_campaign
-    @campaign = if authorized_user.can_admin_system?
+    return @campaign ||= stashed_campaign if action_name == "new"
+    @campaign ||= if authorized_user.can_admin_system?
       Campaign.find(params[:id])
     else
-      current_user.campaigns.find(params[:id])
+      Current.organization&.campaigns&.find(params[:id])
     end
   end
 
-  def set_user
-    @user = if authorized_user.can_admin_system?
-      User.find(params[:user_id])
-    else
-      current_user
+  def set_current_organization_for_admin
+    return unless authorized_user.can_admin_system?
+    if @campaign.organization
+      Current.organization = @campaign.organization
+      session[:organization_id] = @campaign.organization&.id
     end
   end
+
+  def set_sortable_columns
+    @sortable_columns ||= %w[
+      start_date
+      end_date
+      name
+      updated_at
+      created_at
+      hourly_budget_cents
+      daily_budget_cents
+      total_budget_cents
+    ]
+  end
+
+  private
 
   def campaign_params
     return advertiser_campaign_params if !authorized_user.can_admin_system? && @campaign.fixed_ecpm
     return extended_advertiser_campaign_params unless authorized_user.can_admin_system?
-    params.require(:campaign).permit(
+    sanitize_params(:campaign, params).require(:campaign).permit(
       :daily_budget,
       :date_range,
       :ecpm,
+      :ecpm_multiplier,
       :fallback,
       :fixed_ecpm,
       :hourly_budget,
@@ -123,25 +130,34 @@ class CampaignsController < ApplicationController
       :url,
       :user_id,
       assigned_property_ids: [],
+      audience_ids: [],
       country_codes: [],
       creative_ids: [],
       keywords: [],
       negative_keywords: [],
       prohibited_property_ids: [],
       province_codes: [],
+      region_ids: []
     )
   end
 
   def advertiser_campaign_params
-    params.require(:campaign).permit(
+    sanitize_params(:campaign, params).require(:campaign).permit(
       :name,
       :url,
-      creative_ids: [],
-    )
+      creative_ids: []
+    ).tap do |whitelisted|
+      case params[:campaign][:status]
+      when ENUMS::CAMPAIGN_STATUSES::PAUSED
+        whitelisted[:status] = ENUMS::CAMPAIGN_STATUSES::PAUSED if authorized_user.can_pause_campaign?(@campaign)
+      when ENUMS::CAMPAIGN_STATUSES::ACTIVE
+        whitelisted[:status] = ENUMS::CAMPAIGN_STATUSES::ACTIVE if authorized_user.can_activate_campaign?(@campaign)
+      end
+    end
   end
 
   def extended_advertiser_campaign_params
-    params.require(:campaign).permit(
+    sanitize_params(:campaign, params).require(:campaign).permit(
       :name,
       :url,
       country_codes: [],
@@ -152,14 +168,7 @@ class CampaignsController < ApplicationController
     )
   end
 
-  def sortable_columns
-    %w[
-      name
-      end_date
-      total_budget_cents
-      status
-      created_at
-      user.first_name
-    ]
+  def authorize_edit!
+    render_forbidden unless authorized_user(true).can_edit_campaign?(@campaign)
   end
 end

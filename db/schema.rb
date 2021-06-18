@@ -10,13 +10,33 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 2019_10_09_151545) do
+ActiveRecord::Schema.define(version: 2020_05_28_141603) do
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_stat_statements"
   enable_extension "pg_trgm"
   enable_extension "pgcrypto"
   enable_extension "plpgsql"
+  enable_extension "tablefunc"
+
+  create_table "action_mailbox_inbound_emails", force: :cascade do |t|
+    t.integer "status", default: 0, null: false
+    t.string "message_id", null: false
+    t.string "message_checksum", null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["message_id", "message_checksum"], name: "index_action_mailbox_inbound_emails_uniqueness", unique: true
+  end
+
+  create_table "action_text_rich_texts", force: :cascade do |t|
+    t.string "name", null: false
+    t.text "body"
+    t.string "record_type", null: false
+    t.bigint "record_id", null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["record_type", "record_id", "name"], name: "index_action_text_rich_texts_uniqueness", unique: true
+  end
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
@@ -43,6 +63,21 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
     t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
   end
 
+  create_table "campaign_bundles", force: :cascade do |t|
+    t.bigint "organization_id", null: false
+    t.bigint "user_id", null: false
+    t.string "name", null: false
+    t.date "start_date", null: false
+    t.date "end_date", null: false
+    t.bigint "region_ids", default: [], array: true
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index "lower((name)::text)", name: "index_campaign_bundles_on_name"
+    t.index ["end_date"], name: "index_campaign_bundles_on_end_date"
+    t.index ["region_ids"], name: "index_campaign_bundles_on_region_ids", using: :gin
+    t.index ["start_date"], name: "index_campaign_bundles_on_start_date"
+  end
+
   create_table "campaigns", force: :cascade do |t|
     t.bigint "user_id"
     t.bigint "creative_id"
@@ -50,8 +85,8 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
     t.boolean "fallback", default: false, null: false
     t.string "name", null: false
     t.text "url", null: false
-    t.date "start_date"
-    t.date "end_date"
+    t.date "start_date", null: false
+    t.date "end_date", null: false
     t.boolean "core_hours_only", default: false
     t.boolean "weekdays_only", default: false
     t.integer "total_budget_cents", default: 0, null: false
@@ -76,8 +111,14 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
     t.bigint "prohibited_property_ids", default: [], null: false, array: true
     t.bigint "creative_ids", default: [], null: false, array: true
     t.boolean "paid_fallback", default: false
+    t.bigint "campaign_bundle_id"
+    t.bigint "audience_ids", default: [], null: false, array: true
+    t.bigint "region_ids", default: [], null: false, array: true
+    t.decimal "ecpm_multiplier", default: "1.0", null: false
     t.index "lower((name)::text)", name: "index_campaigns_on_name"
     t.index ["assigned_property_ids"], name: "index_campaigns_on_assigned_property_ids", using: :gin
+    t.index ["audience_ids"], name: "index_campaigns_on_audience_ids", using: :gin
+    t.index ["campaign_bundle_id"], name: "index_campaigns_on_campaign_bundle_id"
     t.index ["core_hours_only"], name: "index_campaigns_on_core_hours_only"
     t.index ["country_codes"], name: "index_campaigns_on_country_codes", using: :gin
     t.index ["creative_id"], name: "index_campaigns_on_creative_id"
@@ -90,6 +131,7 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
     t.index ["paid_fallback"], name: "index_campaigns_on_paid_fallback"
     t.index ["prohibited_property_ids"], name: "index_campaigns_on_prohibited_property_ids", using: :gin
     t.index ["province_codes"], name: "index_campaigns_on_province_codes", using: :gin
+    t.index ["region_ids"], name: "index_campaigns_on_region_ids", using: :gin
     t.index ["start_date"], name: "index_campaigns_on_start_date"
     t.index ["status"], name: "index_campaigns_on_status"
     t.index ["user_id"], name: "index_campaigns_on_user_id"
@@ -97,17 +139,17 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
   end
 
   create_table "comments", force: :cascade do |t|
-    t.bigint "commentable_id", null: false
-    t.string "commentable_type", null: false
+    t.bigint "commentable_id"
+    t.string "commentable_type"
     t.string "title"
     t.text "body"
     t.string "subject"
     t.bigint "user_id", null: false
     t.bigint "parent_id"
-    t.integer "lft"
-    t.integer "rgt"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
+    t.bigint "lft"
+    t.bigint "rgt"
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
     t.index ["commentable_id", "commentable_type"], name: "index_comments_on_commentable_id_and_commentable_type"
     t.index ["user_id"], name: "index_comments_on_user_id"
   end
@@ -175,11 +217,49 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "unique_ip_addresses_count", default: 0, null: false
+    t.bigint "fallback_clicks_count", default: 0, null: false
     t.index ["displayed_at_date"], name: "index_daily_summaries_on_displayed_at_date"
     t.index ["impressionable_type", "impressionable_id", "displayed_at_date"], name: "index_daily_summaries_unscoped_uniqueness", unique: true, where: "((scoped_by_type IS NULL) AND (scoped_by_id IS NULL))"
     t.index ["impressionable_type", "impressionable_id", "scoped_by_type", "scoped_by_id", "displayed_at_date"], name: "index_daily_summaries_uniqueness", unique: true
     t.index ["impressionable_type", "impressionable_id"], name: "index_daily_summaries_on_impressionable_columns"
     t.index ["scoped_by_type", "scoped_by_id"], name: "index_daily_summaries_on_scoped_by_columns"
+  end
+
+  create_table "email_hierarchies", id: false, force: :cascade do |t|
+    t.bigint "ancestor_id", null: false
+    t.bigint "descendant_id", null: false
+    t.integer "generations", null: false
+    t.index ["ancestor_id", "descendant_id", "generations"], name: "email_anc_desc_idx", unique: true
+    t.index ["descendant_id"], name: "email_desc_idx"
+  end
+
+  create_table "email_users", force: :cascade do |t|
+    t.bigint "email_id", null: false
+    t.bigint "user_id", null: false
+    t.datetime "read_at"
+    t.index ["email_id", "user_id"], name: "index_email_users_on_email_id_and_user_id", unique: true
+  end
+
+  create_table "emails", force: :cascade do |t|
+    t.text "body"
+    t.datetime "delivered_at", null: false
+    t.date "delivered_at_date", null: false
+    t.string "recipients", default: [], null: false, array: true
+    t.string "sender"
+    t.text "snippet"
+    t.text "subject"
+    t.bigint "action_mailbox_inbound_email_id", null: false
+    t.string "direction", default: "inbound", null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.string "in_reply_to"
+    t.string "message_id"
+    t.bigint "parent_id"
+    t.index "date_trunc('hour'::text, delivered_at)", name: "index_emails_on_delivered_at_hour"
+    t.index ["delivered_at_date"], name: "index_emails_on_delivered_at_date"
+    t.index ["parent_id"], name: "index_emails_on_parent_id"
+    t.index ["recipients"], name: "index_emails_on_recipients", using: :gin
+    t.index ["sender"], name: "index_emails_on_sender"
   end
 
   create_table "events", force: :cascade do |t|
@@ -220,6 +300,21 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
     t.bigint "organization_id"
     t.string "province_code"
     t.boolean "uplift", default: false
+    t.index "date_trunc('hour'::text, clicked_at)", name: "index_impressions_on_clicked_at_hour"
+    t.index "date_trunc('hour'::text, displayed_at)", name: "index_impressions_on_displayed_at_hour"
+    t.index ["ad_template"], name: "index_impressions_on_ad_template"
+    t.index ["ad_theme"], name: "index_impressions_on_ad_theme"
+    t.index ["advertiser_id"], name: "index_impressions_on_advertiser_id"
+    t.index ["campaign_id"], name: "index_impressions_on_campaign_id"
+    t.index ["clicked_at_date"], name: "index_impressions_on_clicked_at_date"
+    t.index ["country_code"], name: "index_impressions_on_country_code"
+    t.index ["creative_id"], name: "index_impressions_on_creative_id"
+    t.index ["displayed_at_date"], name: "index_impressions_on_displayed_at_date"
+    t.index ["id", "advertiser_id", "displayed_at_date"], name: "index_impressions_on_id_and_advertiser_id_and_displayed_at_date", unique: true
+    t.index ["organization_id"], name: "index_impressions_on_organization_id"
+    t.index ["property_id"], name: "index_impressions_on_property_id"
+    t.index ["province_code"], name: "index_impressions_on_province_code"
+    t.index ["uplift"], name: "index_impressions_on_uplift"
   end
 
   create_table "impressions_default", id: false, force: :cascade do |t|
@@ -358,10 +453,22 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.boolean "gift", default: false
+    t.boolean "temporary", default: false
     t.index ["gift"], name: "index_organization_transactions_on_gift"
     t.index ["organization_id"], name: "index_organization_transactions_on_organization_id"
     t.index ["reference"], name: "index_organization_transactions_on_reference"
     t.index ["transaction_type"], name: "index_organization_transactions_on_transaction_type"
+  end
+
+  create_table "organization_users", force: :cascade do |t|
+    t.bigint "organization_id", null: false
+    t.bigint "user_id", null: false
+    t.string "role", default: "member", null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["organization_id", "user_id", "role"], name: "index_organization_users_on_uniqueness", unique: true
+    t.index ["organization_id"], name: "index_organization_users_on_organization_id"
+    t.index ["user_id"], name: "index_organization_users_on_user_id"
   end
 
   create_table "organizations", force: :cascade do |t|
@@ -370,11 +477,70 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
     t.string "balance_currency", default: "USD", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "creative_approval_needed", default: true
+    t.bigint "account_manager_user_id"
+    t.text "url"
+    t.index ["account_manager_user_id"], name: "index_organizations_on_account_manager_user_id"
+    t.index ["creative_approval_needed"], name: "index_organizations_on_creative_approval_needed"
+  end
+
+  create_table "pixel_conversions", force: :cascade do |t|
+    t.uuid "pixel_id", null: false
+    t.uuid "impression_id"
+    t.string "impression_id_param", default: "", null: false
+    t.boolean "test", default: false, null: false
+    t.string "pixel_name", default: "", null: false
+    t.integer "pixel_value_cents", default: 0, null: false
+    t.string "pixel_value_currency", default: "USD", null: false
+    t.bigint "advertiser_id"
+    t.bigint "publisher_id"
+    t.bigint "campaign_id"
+    t.bigint "creative_id"
+    t.bigint "property_id"
+    t.string "ip_address"
+    t.text "user_agent"
+    t.string "country_code"
+    t.string "postal_code"
+    t.decimal "latitude"
+    t.decimal "longitude"
+    t.datetime "displayed_at"
+    t.date "displayed_at_date"
+    t.datetime "clicked_at"
+    t.date "clicked_at_date"
+    t.boolean "fallback_campaign", default: false, null: false
+    t.jsonb "metadata", default: "{}", null: false
+    t.text "conversion_referrer"
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["advertiser_id"], name: "index_pixel_conversions_on_advertiser_id"
+    t.index ["campaign_id"], name: "index_pixel_conversions_on_campaign_id"
+    t.index ["clicked_at_date"], name: "index_pixel_conversions_on_clicked_at_date"
+    t.index ["country_code"], name: "index_pixel_conversions_on_country_code"
+    t.index ["creative_id"], name: "index_pixel_conversions_on_creative_id"
+    t.index ["displayed_at_date"], name: "index_pixel_conversions_on_displayed_at_date"
+    t.index ["impression_id"], name: "index_pixel_conversions_on_impression_id"
+    t.index ["metadata"], name: "index_pixel_conversions_on_metadata", using: :gin
+    t.index ["pixel_id", "impression_id_param"], name: "index_pixel_conversions_on_pixel_id_and_impression_id_param", unique: true
+    t.index ["pixel_id"], name: "index_pixel_conversions_on_pixel_id"
+    t.index ["property_id"], name: "index_pixel_conversions_on_property_id"
+  end
+
+  create_table "pixels", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "name", null: false
+    t.text "description"
+    t.bigint "organization_id", null: false
+    t.bigint "user_id", null: false
+    t.integer "value_cents", default: 0, null: false
+    t.string "value_currency", default: "USD", null: false
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["organization_id"], name: "index_pixels_on_organization_id"
+    t.index ["user_id"], name: "index_pixels_on_user_id"
   end
 
   create_table "properties", force: :cascade do |t|
     t.bigint "user_id", null: false
-    t.string "property_type", null: false
+    t.string "property_type", default: "website", null: false
     t.string "status", null: false
     t.string "name", null: false
     t.text "description"
@@ -383,7 +549,6 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
     t.string "ad_theme"
     t.string "language", null: false
     t.string "keywords", default: [], null: false, array: true
-    t.bigint "prohibited_advertiser_ids", default: [], null: false, array: true
     t.boolean "prohibit_fallback_campaigns", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
@@ -394,12 +559,14 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
     t.string "fallback_ad_template"
     t.string "fallback_ad_theme"
     t.string "responsive_behavior", default: "none", null: false
-    t.string "audience"
+    t.bigint "audience_id"
+    t.datetime "deleted_at"
+    t.bigint "prohibited_organization_ids", default: [], null: false, array: true
     t.index "lower((name)::text)", name: "index_properties_on_name"
     t.index ["assigned_fallback_campaign_ids"], name: "index_properties_on_assigned_fallback_campaign_ids", using: :gin
-    t.index ["audience"], name: "index_properties_on_audience"
+    t.index ["audience_id"], name: "index_properties_on_audience_id"
     t.index ["keywords"], name: "index_properties_on_keywords", using: :gin
-    t.index ["prohibited_advertiser_ids"], name: "index_properties_on_prohibited_advertiser_ids", using: :gin
+    t.index ["prohibited_organization_ids"], name: "index_properties_on_prohibited_organization_ids", using: :gin
     t.index ["property_type"], name: "index_properties_on_property_type"
     t.index ["status"], name: "index_properties_on_status"
     t.index ["user_id"], name: "index_properties_on_user_id"
@@ -417,36 +584,36 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
 
   create_table "property_traffic_estimates", force: :cascade do |t|
     t.bigint "property_id", null: false
-    t.integer "site_worth_cents", default: 0, null: false
+    t.bigint "site_worth_cents", default: 0, null: false
     t.string "site_worth_currency", default: "USD", null: false
-    t.integer "visitors_daily", default: 0
-    t.integer "visitors_monthly", default: 0
-    t.integer "visitors_yearly", default: 0
-    t.integer "pageviews_daily", default: 0
-    t.integer "pageviews_monthly", default: 0
-    t.integer "pageviews_yearly", default: 0
-    t.integer "revenue_daily_cents", default: 0, null: false
+    t.bigint "visitors_daily", default: 0
+    t.bigint "visitors_monthly", default: 0
+    t.bigint "visitors_yearly", default: 0
+    t.bigint "pageviews_daily", default: 0
+    t.bigint "pageviews_monthly", default: 0
+    t.bigint "pageviews_yearly", default: 0
+    t.bigint "revenue_daily_cents", default: 0, null: false
     t.string "revenue_daily_currency", default: "USD", null: false
-    t.integer "revenue_monthly_cents", default: 0, null: false
+    t.bigint "revenue_monthly_cents", default: 0, null: false
     t.string "revenue_monthly_currency", default: "USD", null: false
-    t.integer "revenue_yearly_cents", default: 0, null: false
+    t.bigint "revenue_yearly_cents", default: 0, null: false
     t.string "revenue_yearly_currency", default: "USD", null: false
-    t.integer "alexa_rank_3_months", default: 0
-    t.integer "alexa_rank_1_month", default: 0
-    t.integer "alexa_rank_7_days", default: 0
-    t.integer "alexa_rank_1_day", default: 0
-    t.integer "alexa_rank_delta_3_months", default: 0
-    t.integer "alexa_rank_delta_1_month", default: 0
-    t.integer "alexa_rank_delta_7_days", default: 0
-    t.integer "alexa_rank_delta_1_day", default: 0
-    t.integer "alexa_reach_3_months", default: 0
-    t.integer "alexa_reach_1_month", default: 0
-    t.integer "alexa_reach_7_days", default: 0
-    t.integer "alexa_reach_1_day", default: 0
-    t.integer "alexa_reach_delta_3_months", default: 0
-    t.integer "alexa_reach_delta_1_month", default: 0
-    t.integer "alexa_reach_delta_7_days", default: 0
-    t.integer "alexa_reach_delta_1_day", default: 0
+    t.bigint "alexa_rank_3_months", default: 0
+    t.bigint "alexa_rank_1_month", default: 0
+    t.bigint "alexa_rank_7_days", default: 0
+    t.bigint "alexa_rank_1_day", default: 0
+    t.bigint "alexa_rank_delta_3_months", default: 0
+    t.bigint "alexa_rank_delta_1_month", default: 0
+    t.bigint "alexa_rank_delta_7_days", default: 0
+    t.bigint "alexa_rank_delta_1_day", default: 0
+    t.bigint "alexa_reach_3_months", default: 0
+    t.bigint "alexa_reach_1_month", default: 0
+    t.bigint "alexa_reach_7_days", default: 0
+    t.bigint "alexa_reach_1_day", default: 0
+    t.bigint "alexa_reach_delta_3_months", default: 0
+    t.bigint "alexa_reach_delta_1_month", default: 0
+    t.bigint "alexa_reach_delta_7_days", default: 0
+    t.bigint "alexa_reach_delta_1_day", default: 0
     t.float "alexa_pageviews_3_months"
     t.float "alexa_pageviews_1_month"
     t.float "alexa_pageviews_7_days"
@@ -475,6 +642,20 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
     t.index ["paid_at"], name: "index_publisher_invoices_on_paid_at"
     t.index ["start_date"], name: "index_publisher_invoices_on_start_date"
     t.index ["user_id"], name: "index_publisher_invoices_on_user_id"
+  end
+
+  create_table "scheduled_organization_reports", force: :cascade do |t|
+    t.bigint "organization_id", null: false
+    t.text "subject", null: false
+    t.date "start_date", null: false
+    t.date "end_date", null: false
+    t.string "frequency", null: false
+    t.string "dataset", null: false
+    t.bigint "campaign_ids", default: [], null: false, array: true
+    t.string "recipients", default: [], null: false, array: true
+    t.datetime "created_at", precision: 6, null: false
+    t.datetime "updated_at", precision: 6, null: false
+    t.index ["organization_id"], name: "index_scheduled_organization_reports_on_organization_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -537,6 +718,7 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
     t.string "utm_term"
     t.string "utm_content"
     t.string "status", default: "active"
+    t.boolean "record_inbound_emails", default: false
     t.index "lower((email)::text)", name: "index_users_on_email", unique: true
     t.index ["confirmation_token"], name: "index_users_on_confirmation_token", unique: true
     t.index ["invitation_token"], name: "index_users_on_invitation_token", unique: true
@@ -563,66 +745,249 @@ ActiveRecord::Schema.define(version: 2019_10_09_151545) do
     t.index ["object_changes"], name: "index_versions_on_object_changes", using: :gin
   end
 
+  add_foreign_key "pixels", "organizations"
+  add_foreign_key "pixels", "users"
 
   create_view "regions", sql_definition: <<-SQL
       SELECT 1 AS id,
-      'United States and Candada'::text AS name,
+      'Africa'::text AS name,
       'USD'::text AS blockchain_ecpm_currency,
-      1000 AS blockchain_ecpm_cents,
+      75 AS blockchain_ecpm_cents,
       'USD'::text AS css_and_design_ecpm_currency,
-      450 AS css_and_design_ecpm_cents,
+      38 AS css_and_design_ecpm_cents,
       'USD'::text AS dev_ops_ecpm_currency,
-      650 AS dev_ops_ecpm_cents,
+      53 AS dev_ops_ecpm_cents,
       'USD'::text AS game_development_ecpm_currency,
-      425 AS game_development_ecpm_cents,
+      38 AS game_development_ecpm_cents,
       'USD'::text AS javascript_and_frontend_ecpm_currency,
-      625 AS javascript_and_frontend_ecpm_cents,
+      68 AS javascript_and_frontend_ecpm_cents,
       'USD'::text AS miscellaneous_ecpm_currency,
-      425 AS miscellaneous_ecpm_cents,
+      23 AS miscellaneous_ecpm_cents,
       'USD'::text AS mobile_development_ecpm_currency,
-      450 AS mobile_development_ecpm_cents,
+      38 AS mobile_development_ecpm_cents,
       'USD'::text AS web_development_and_backend_ecpm_currency,
-      500 AS web_development_and_backend_ecpm_cents,
-      '{US,CA}'::text[] AS country_codes
+      45 AS web_development_and_backend_ecpm_cents,
+      '{AO,BF,BI,BJ,BW,CD,CF,CG,CI,CM,CV,DJ,DZ,EG,EH,ER,ET,GA,GH,GM,GN,GQ,GW,IO,KE,KM,LR,LS,LY,MA,MG,ML,MR,MU,MW,MZ,NA,NE,NG,RE,RW,SC,SD,SH,SL,SN,SO,SS,ST,SZ,TD,TG,TN,TZ,UG,YT,ZA,ZM,ZW}'::text[] AS country_codes
   UNION ALL
    SELECT 2 AS id,
-      'Europe, Australia and New Zealand'::text AS name,
+      'Americas - Central and Southern'::text AS name,
       'USD'::text AS blockchain_ecpm_currency,
-      900 AS blockchain_ecpm_cents,
+      150 AS blockchain_ecpm_cents,
       'USD'::text AS css_and_design_ecpm_currency,
-      350 AS css_and_design_ecpm_cents,
+      75 AS css_and_design_ecpm_cents,
       'USD'::text AS dev_ops_ecpm_currency,
-      550 AS dev_ops_ecpm_cents,
+      105 AS dev_ops_ecpm_cents,
       'USD'::text AS game_development_ecpm_currency,
-      325 AS game_development_ecpm_cents,
+      75 AS game_development_ecpm_cents,
       'USD'::text AS javascript_and_frontend_ecpm_currency,
-      525 AS javascript_and_frontend_ecpm_cents,
+      135 AS javascript_and_frontend_ecpm_cents,
       'USD'::text AS miscellaneous_ecpm_currency,
-      325 AS miscellaneous_ecpm_cents,
+      45 AS miscellaneous_ecpm_cents,
       'USD'::text AS mobile_development_ecpm_currency,
-      350 AS mobile_development_ecpm_cents,
+      75 AS mobile_development_ecpm_cents,
       'USD'::text AS web_development_and_backend_ecpm_currency,
-      400 AS web_development_and_backend_ecpm_cents,
-      '{AD,AL,AT,AU,AX,BA,BE,BG,BY,CC,CH,CX,CZ,DE,DK,EE,ES,FI,FO,FR,GB,GG,GI,GR,HR,HU,IE,IM,IS,IT,JE,LI,LT,LU,LV,MC,MD,ME,MK,MT,NF,NL,NO,NZ,PL,PT,RO,RS,SE,SI,SJ,SK,SM,UA,VA}'::text[] AS country_codes
+      90 AS web_development_and_backend_ecpm_cents,
+      '{AR,BO,BR,BZ,CL,CO,CR,EC,FK,GF,GS,GT,GY,HN,MX,NI,PA,PE,PY,SR,SV,UY,VE}'::text[] AS country_codes
   UNION ALL
    SELECT 3 AS id,
+      'Americas - Northern'::text AS name,
+      'USD'::text AS blockchain_ecpm_currency,
+      750 AS blockchain_ecpm_cents,
+      'USD'::text AS css_and_design_ecpm_currency,
+      375 AS css_and_design_ecpm_cents,
+      'USD'::text AS dev_ops_ecpm_currency,
+      525 AS dev_ops_ecpm_cents,
+      'USD'::text AS game_development_ecpm_currency,
+      375 AS game_development_ecpm_cents,
+      'USD'::text AS javascript_and_frontend_ecpm_currency,
+      675 AS javascript_and_frontend_ecpm_cents,
+      'USD'::text AS miscellaneous_ecpm_currency,
+      225 AS miscellaneous_ecpm_cents,
+      'USD'::text AS mobile_development_ecpm_currency,
+      375 AS mobile_development_ecpm_cents,
+      'USD'::text AS web_development_and_backend_ecpm_currency,
+      450 AS web_development_and_backend_ecpm_cents,
+      '{US,CA}'::text[] AS country_codes
+  UNION ALL
+   SELECT 4 AS id,
+      'Asia - Central and South-Eastern'::text AS name,
+      'USD'::text AS blockchain_ecpm_currency,
+      225 AS blockchain_ecpm_cents,
+      'USD'::text AS css_and_design_ecpm_currency,
+      113 AS css_and_design_ecpm_cents,
+      'USD'::text AS dev_ops_ecpm_currency,
+      158 AS dev_ops_ecpm_cents,
+      'USD'::text AS game_development_ecpm_currency,
+      113 AS game_development_ecpm_cents,
+      'USD'::text AS javascript_and_frontend_ecpm_currency,
+      203 AS javascript_and_frontend_ecpm_cents,
+      'USD'::text AS miscellaneous_ecpm_currency,
+      68 AS miscellaneous_ecpm_cents,
+      'USD'::text AS mobile_development_ecpm_currency,
+      113 AS mobile_development_ecpm_cents,
+      'USD'::text AS web_development_and_backend_ecpm_currency,
+      135 AS web_development_and_backend_ecpm_cents,
+      '{BN,ID,KG,KH,KZ,LA,MM,MY,PH,SG,TH,TJ,TL,TM,UZ,VN}'::text[] AS country_codes
+  UNION ALL
+   SELECT 5 AS id,
+      'Asia - Eastern'::text AS name,
+      'USD'::text AS blockchain_ecpm_currency,
+      225 AS blockchain_ecpm_cents,
+      'USD'::text AS css_and_design_ecpm_currency,
+      113 AS css_and_design_ecpm_cents,
+      'USD'::text AS dev_ops_ecpm_currency,
+      158 AS dev_ops_ecpm_cents,
+      'USD'::text AS game_development_ecpm_currency,
+      113 AS game_development_ecpm_cents,
+      'USD'::text AS javascript_and_frontend_ecpm_currency,
+      203 AS javascript_and_frontend_ecpm_cents,
+      'USD'::text AS miscellaneous_ecpm_currency,
+      68 AS miscellaneous_ecpm_cents,
+      'USD'::text AS mobile_development_ecpm_currency,
+      113 AS mobile_development_ecpm_cents,
+      'USD'::text AS web_development_and_backend_ecpm_currency,
+      135 AS web_development_and_backend_ecpm_cents,
+      '{CN,HK,JP,KP,KR,MN,MO,TW}'::text[] AS country_codes
+  UNION ALL
+   SELECT 6 AS id,
+      'Asia - Southern and Western'::text AS name,
+      'USD'::text AS blockchain_ecpm_currency,
+      225 AS blockchain_ecpm_cents,
+      'USD'::text AS css_and_design_ecpm_currency,
+      113 AS css_and_design_ecpm_cents,
+      'USD'::text AS dev_ops_ecpm_currency,
+      158 AS dev_ops_ecpm_cents,
+      'USD'::text AS game_development_ecpm_currency,
+      113 AS game_development_ecpm_cents,
+      'USD'::text AS javascript_and_frontend_ecpm_currency,
+      203 AS javascript_and_frontend_ecpm_cents,
+      'USD'::text AS miscellaneous_ecpm_currency,
+      68 AS miscellaneous_ecpm_cents,
+      'USD'::text AS mobile_development_ecpm_currency,
+      113 AS mobile_development_ecpm_cents,
+      'USD'::text AS web_development_and_backend_ecpm_currency,
+      135 AS web_development_and_backend_ecpm_cents,
+      '{AE,AF,AM,AZ,BD,BH,BT,CY,GE,IL,IN,IQ,IR,JO,KW,LB,LK,MV,NP,OM,PK,PS,QA,SA,SY,TR,YE}'::text[] AS country_codes
+  UNION ALL
+   SELECT 7 AS id,
+      'Australia and New Zealand'::text AS name,
+      'USD'::text AS blockchain_ecpm_currency,
+      750 AS blockchain_ecpm_cents,
+      'USD'::text AS css_and_design_ecpm_currency,
+      375 AS css_and_design_ecpm_cents,
+      'USD'::text AS dev_ops_ecpm_currency,
+      525 AS dev_ops_ecpm_cents,
+      'USD'::text AS game_development_ecpm_currency,
+      375 AS game_development_ecpm_cents,
+      'USD'::text AS javascript_and_frontend_ecpm_currency,
+      675 AS javascript_and_frontend_ecpm_cents,
+      'USD'::text AS miscellaneous_ecpm_currency,
+      225 AS miscellaneous_ecpm_cents,
+      'USD'::text AS mobile_development_ecpm_currency,
+      375 AS mobile_development_ecpm_cents,
+      'USD'::text AS web_development_and_backend_ecpm_currency,
+      450 AS web_development_and_backend_ecpm_cents,
+      '{AU,CC,CX,NF,NZ}'::text[] AS country_codes
+  UNION ALL
+   SELECT 8 AS id,
+      'Europe'::text AS name,
+      'USD'::text AS blockchain_ecpm_currency,
+      675 AS blockchain_ecpm_cents,
+      'USD'::text AS css_and_design_ecpm_currency,
+      338 AS css_and_design_ecpm_cents,
+      'USD'::text AS dev_ops_ecpm_currency,
+      473 AS dev_ops_ecpm_cents,
+      'USD'::text AS game_development_ecpm_currency,
+      338 AS game_development_ecpm_cents,
+      'USD'::text AS javascript_and_frontend_ecpm_currency,
+      608 AS javascript_and_frontend_ecpm_cents,
+      'USD'::text AS miscellaneous_ecpm_currency,
+      203 AS miscellaneous_ecpm_cents,
+      'USD'::text AS mobile_development_ecpm_currency,
+      338 AS mobile_development_ecpm_cents,
+      'USD'::text AS web_development_and_backend_ecpm_currency,
+      405 AS web_development_and_backend_ecpm_cents,
+      '{AD,AL,AT,AX,BA,BE,CH,DE,DK,EE,ES,FI,FO,FR,GB,GG,GI,GR,HR,IE,IM,IS,IT,JE,LI,LT,LU,LV,MC,ME,MK,MT,NL,NO,PT,RS,SE,SI,SJ,SM,VA}'::text[] AS country_codes
+  UNION ALL
+   SELECT 9 AS id,
+      'Europe - Eastern'::text AS name,
+      'USD'::text AS blockchain_ecpm_currency,
+      450 AS blockchain_ecpm_cents,
+      'USD'::text AS css_and_design_ecpm_currency,
+      225 AS css_and_design_ecpm_cents,
+      'USD'::text AS dev_ops_ecpm_currency,
+      315 AS dev_ops_ecpm_cents,
+      'USD'::text AS game_development_ecpm_currency,
+      225 AS game_development_ecpm_cents,
+      'USD'::text AS javascript_and_frontend_ecpm_currency,
+      405 AS javascript_and_frontend_ecpm_cents,
+      'USD'::text AS miscellaneous_ecpm_currency,
+      135 AS miscellaneous_ecpm_cents,
+      'USD'::text AS mobile_development_ecpm_currency,
+      225 AS mobile_development_ecpm_cents,
+      'USD'::text AS web_development_and_backend_ecpm_currency,
+      270 AS web_development_and_backend_ecpm_cents,
+      '{BG,BY,CZ,HU,MD,PL,RO,RU,SK,UA}'::text[] AS country_codes
+  UNION ALL
+   SELECT 10 AS id,
       'Other'::text AS name,
       'USD'::text AS blockchain_ecpm_currency,
-      600 AS blockchain_ecpm_cents,
+      75 AS blockchain_ecpm_cents,
       'USD'::text AS css_and_design_ecpm_currency,
-      50 AS css_and_design_ecpm_cents,
+      38 AS css_and_design_ecpm_cents,
       'USD'::text AS dev_ops_ecpm_currency,
-      250 AS dev_ops_ecpm_cents,
+      53 AS dev_ops_ecpm_cents,
       'USD'::text AS game_development_ecpm_currency,
-      25 AS game_development_ecpm_cents,
+      38 AS game_development_ecpm_cents,
       'USD'::text AS javascript_and_frontend_ecpm_currency,
-      225 AS javascript_and_frontend_ecpm_cents,
+      68 AS javascript_and_frontend_ecpm_cents,
       'USD'::text AS miscellaneous_ecpm_currency,
-      25 AS miscellaneous_ecpm_cents,
+      23 AS miscellaneous_ecpm_cents,
       'USD'::text AS mobile_development_ecpm_currency,
-      50 AS mobile_development_ecpm_cents,
+      38 AS mobile_development_ecpm_cents,
       'USD'::text AS web_development_and_backend_ecpm_currency,
-      100 AS web_development_and_backend_ecpm_cents,
-      '{AE,AF,AG,AI,AM,AO,AR,AS,AW,AZ,BB,BD,BF,BH,BI,BJ,BL,BM,BN,BO,BQ,BR,BS,BT,BW,BZ,CD,CF,CG,CI,CK,CL,CM,CN,CO,CR,CU,CV,CW,CY,DJ,DM,DO,DZ,EC,EG,EH,ER,ET,FJ,FK,FM,GA,GD,GE,GF,GH,GL,GM,GN,GP,GQ,GS,GT,GU,GW,GY,HK,HN,HT,ID,IL,IN,IO,IQ,IR,JM,JO,JP,KE,KG,KH,KI,KM,KN,KP,KR,KW,KY,KZ,LA,LB,LC,LK,LR,LS,LY,MA,MF,MG,MH,ML,MM,MN,MO,MP,MQ,MR,MS,MU,MV,MW,MX,MY,MZ,NA,NC,NE,NG,NI,NP,NR,NU,OM,PA,PE,PF,PG,PH,PK,PM,PN,PR,PS,PW,PY,QA,RE,RU,RW,SA,SB,SC,SD,SG,SH,SL,SN,SO,SR,SS,ST,SV,SX,SY,SZ,TC,TD,TG,TH,TJ,TK,TL,TM,TN,TO,TR,TT,TV,TW,TZ,UG,UM,UY,UZ,VC,VE,VG,VI,VN,VU,WF,WS,YE,YT,ZA,ZM,ZW}'::text[] AS country_codes;
+      45 AS web_development_and_backend_ecpm_cents,
+      '{AG,AI,AS,AW,BB,BL,BM,BQ,BS,CK,CU,CW,DM,DO,FJ,FM,GD,GL,GP,GU,HT,JM,KI,KN,KY,LC,MF,MH,MP,MQ,MS,NC,NR,NU,PF,PG,PM,PN,PR,PW,SB,SX,TC,TK,TO,TT,TV,UM,VC,VG,VI,VU,WF,WS}'::text[] AS country_codes;
+  SQL
+  create_view "audiences", sql_definition: <<-SQL
+      SELECT 1 AS id,
+      'Blockchain'::text AS name,
+      'blockchain_ecpm_cents'::text AS ecpm_column_name,
+      '{Blockchain,Cryptography,Solidity}'::text[] AS keywords
+  UNION ALL
+   SELECT 2 AS id,
+      'CSS & Design'::text AS name,
+      'css_and_design_ecpm_cents'::text AS ecpm_column_name,
+      '{"CSS & Design"}'::text[] AS keywords
+  UNION ALL
+   SELECT 3 AS id,
+      'DevOps'::text AS name,
+      'dev_ops_ecpm_cents'::text AS ecpm_column_name,
+      '{DevOps,Security,Serverless}'::text[] AS keywords
+  UNION ALL
+   SELECT 4 AS id,
+      'Game Development'::text AS name,
+      'game_development_ecpm_cents'::text AS ecpm_column_name,
+      '{"Game Development","Virtual Reality"}'::text[] AS keywords
+  UNION ALL
+   SELECT 5 AS id,
+      'JavaScript & Frontend'::text AS name,
+      'javascript_and_frontend_ecpm_cents'::text AS ecpm_column_name,
+      '{Angular,Dart,Frontend,JavaScript,React,VueJS}'::text[] AS keywords
+  UNION ALL
+   SELECT 6 AS id,
+      'Miscellaneous'::text AS name,
+      'miscellaneous_ecpm_cents'::text AS ecpm_column_name,
+      '{C,D,"Developer Resources",Erlang,F#,Haskell,IoT,Julia,"Machine Learning",Other,Q,R,Rust,Scala}'::text[] AS keywords
+  UNION ALL
+   SELECT 7 AS id,
+      'Mobile Development'::text AS name,
+      'mobile_development_ecpm_cents'::text AS ecpm_column_name,
+      '{Android,"Hybrid & Mobile Web",Kotlin,Objective-C,Swift,iOS}'::text[] AS keywords
+  UNION ALL
+   SELECT 8 AS id,
+      'Web Development & Backend'::text AS name,
+      'web_development_and_backend_ecpm_cents'::text AS ecpm_column_name,
+      '{.NET,Backend,Database,Go,Groovy,Java,PHP,PL/SQL,Python,Ruby}'::text[] AS keywords;
   SQL
 end

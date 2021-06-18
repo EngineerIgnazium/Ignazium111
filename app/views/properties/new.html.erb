@@ -1,16 +1,4 @@
-<% content_for :breadcrumbs do %>
-  <%= render "/@shared/breadcrumbs/properties" %>
-  <%= render "/@shared/breadcrumbs/add_property", class: "active" %>
+<%= render(PageComponent.new(subject: @property)) do |component| %>
+  <%= component.with(:header) { render(Page::HeaderComponent.new(title: "Add Property", subtitle: "Fill out the form below")) } %>
+  <%= component.with(:body) { render("/properties/form", property: @property) } %>
 <% end %>
-
-<% content_for :page_heading do %>
-  <%= page_heading "Adding", "Property",
-    subtitle: "Fill out the form below",
-    icon: "fas fa-browser" %>
-<% end %>
-
-<main id="content" role="main" class="bg-light">
-  <div class="container space-1">
-    <%= render "/properties/form", property: @property %>
-  </div>
-</main>

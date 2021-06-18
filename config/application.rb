@@ -2,6 +2,8 @@ require_relative "boot"
 
 require "rails/all"
 
+require "view_component/engine"
+
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
@@ -17,9 +19,14 @@ module CodeFundAds
     # -- all .rb files in that directory are automatically loaded after loading
     # the framework and any gems in your application.
 
-    config.middleware.use Rack::Attack
-    config.middleware.insert_after ActionDispatch::Static, Rack::Deflater
     config.active_record.schema_format = :sql
     config.active_job.queue_adapter = :sidekiq
+    config.exceptions_app = routes
+    config.annotations.register_tags("DEPRECATE")
+
+    config.generators do |g|
+      g.assets false
+      g.stylesheets false
+    end
   end
 end

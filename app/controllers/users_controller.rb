@@ -1,25 +1,25 @@
 class UsersController < ApplicationController
   include Sortable
+  include Scopable
 
   before_action :authenticate_user!
   before_action :authenticate_administrator!, except: [:show, :edit, :update]
-  before_action :set_user_search, only: [:index]
   before_action :set_user, only: [:show, :edit, :update, :destroy]
+  before_action :set_current_organization_for_admin, only: [:show]
   before_action :set_organization, only: [:index], if: -> { params[:organization_id].present? }
   skip_before_action :authenticate_user!, if: -> { params[:redir].present? }
   skip_before_action :authenticate_administrator!, if: -> { params[:redir].present? }
 
-  def index
-    users = User.includes(:avatar_attachment, :organization).include_image_count.order(order_by)
-    users = @user_search.apply(users)
-    users = users.where(organization: @organization) if @organization
-    @pagy, @users = pagy(users)
+  set_default_sorted_by :first_name
 
-    render "/users/for_organization/index" if @organization
+  def index
+    users = scope_list(User).includes(:avatar_attachment).include_image_count.order(order_by)
+    @pagy, @users = pagy(users, page: @page)
   end
 
   def new
     @user = User.new
+    @user.organization_users.build
   end
 
   def create
@@ -27,6 +27,7 @@ class UsersController < ApplicationController
 
     respond_to do |format|
       if @user.save
+        CheckConsolidatedScreeningListJob.perform_later @user
         format.html do
           return redirect_to(params[:redir]) if params[:redir].present?
           redirect_to success_url, notice: "User was successfully created."
@@ -42,9 +43,14 @@ class UsersController < ApplicationController
     end
   end
 
+  def edit
+    @user.organization_users.build(role: "") unless @user.organization_users.exists?
+  end
+
   def update
     respond_to do |format|
       if @user.update(user_params)
+        CheckConsolidatedScreeningListJob.perform_later @user
         format.html { redirect_to @user, notice: "User was successfully updated." }
         format.json { render :show, status: :ok, location: @user }
       else
@@ -64,12 +70,6 @@ class UsersController < ApplicationController
 
   private
 
-  def set_user_search
-    clear_searches except: :user_search
-    @user_search = GlobalID.parse(session[:user_search]).find if session[:user_search].present?
-    @user_search ||= UserSearch.new
-  end
-
   def set_user
     @user = if authorized_user.can_admin_system? && params[:id] != "me"
       User.find(params[:id])
@@ -79,7 +79,31 @@ class UsersController < ApplicationController
   end
 
   def set_organization
-    @organization = Organization.find(params[:organization_id])
+    @organization ||= Current.organization
+  end
+
+  def set_current_organization_for_admin
+    return unless authorized_user.can_admin_system?
+    if @user.default_organization
+      Current.organization = @user.default_organization
+      session[:organization_id] = @user.default_organization&.id
+    end
+  end
+
+  def set_sortable_columns
+    @sortable_columns ||= %w[
+      company_name
+      created_at
+      email
+      first_name
+      last_name
+      last_sign_in_at
+      updated_at
+    ]
+  end
+
+  def set_scopable_values
+    @scopable_values ||= %w[all administrators advertisers publishers].flatten
   end
 
   def user_params
@@ -103,32 +127,14 @@ class UsersController < ApplicationController
       :us_resident,
       :website_url,
       skills: [],
+      organization_users_attributes: [:organization_id, :role, :id]
     ).tap do |whitelisted|
       if authorized_user.can_admin_system?
         whitelisted[:api_access] = params[:user][:api_access]
-        whitelisted[:organization_id] = params[:user][:organization_id]
         whitelisted[:roles] = params[:user][:roles]
         whitelisted[:status] = params[:user][:status]
+        whitelisted[:record_inbound_emails] = params[:user][:record_inbound_emails]
       end
     end
-  end
-
-  def sortable_columns
-    %w[
-      company_name
-      created_at
-      email
-      first_name
-      last_sign_in_at
-    ]
-  end
-
-  def sort_column
-    return params[:column] if sortable_columns.include?(params[:column])
-    "last_sign_in_at"
-  end
-
-  def sort_direction
-    %w[asc desc].include?(params[:direction]) ? params[:direction] : "desc"
   end
 end

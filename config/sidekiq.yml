@@ -1,4 +1,4 @@
-:concurrency: <%= ENV.fetch("RAILS_MAX_THREADS", 10).to_i - 2 %>
+:concurrency: <%= ENV.fetch("REDIS_QUEUE_MAX_THREADS", 5).to_i - 2 %>
 :queues:
   - critical
   - mailers
@@ -7,5 +7,8 @@
   - click
   - default
   - rollbar
+  - action_mailbox_routing
+  - active_storage_analysis
+  - action_mailbox_incineration
   - low
   - traffic

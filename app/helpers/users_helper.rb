@@ -1,16 +1,13 @@
 module UsersHelper
-  def avatar_image_url(user)
-    return user.avatar if user.avatar.attached?
-
-    user.gravatar_url("identicon")
-  end
-
-  def user_avatar_image_tag(user, tag_class = "img-fluid rounded-circle")
-    image_tag(
-      avatar_image_url(user),
-      class: tag_class,
-      alt: user.full_name
-    )
+  def user_tabs(user)
+    [
+      {name: "Overview", path: user_path(user), active: :exact},
+      {name: "Properties", path: user_properties_path(user), validation: user.properties.exists?},
+      {name: "Campaigns", path: user_campaigns_path(user), validation: user.campaigns.exists?},
+      {name: "Emails", path: user_emails_path(user), validation: authorized_user.can_view_emails?},
+      {name: "Comments", path: user_comments_path(user), validation: authorized_user.can_view_comments?},
+      {name: "Settings", path: edit_user_path(user)}
+    ]
   end
 
   def default_dashboard_path(user)

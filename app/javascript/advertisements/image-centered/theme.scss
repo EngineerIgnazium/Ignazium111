@@ -1,0 +1,111 @@
+div#cf[data-template='image-centered'] {
+  &[data-theme='dark'] {
+    max-width: 280px;
+    margin: 0 auto;
+    border: none;
+    background-color: rgba(0, 0, 0, 0.05);
+
+    a {
+      box-shadow: none !important;
+      text-decoration: none;
+    }
+
+    span.cf-wrapper {
+      display: block;
+      padding: 15px;
+      font-size: 14px;
+      line-height: 1.4;
+      text-align: left;
+      font-family: Helvetica, Arial, sans-serif;
+      margin-left: auto;
+      margin-right: auto;
+
+      span.cf-img-wrapper {
+        display: block;
+        text-align: center;
+        margin-bottom: 8px;
+
+        img.cf-img {
+          max-width: 130px;
+          position: relative;
+          margin: 0 auto;
+        }
+      }
+
+      span.cf-text {
+        color: rgba(255, 255, 255, 0.8);
+
+        strong {
+          color: #ffffff;
+        }
+
+        span.cf-cta {
+          text-decoration: underline;
+        }
+      }
+
+      a.cf-powered-by {
+        margin-top: 5px;
+        font-size: 11px;
+        display: block;
+        color: rgba(255, 255, 255, 0.7);
+        text-align: center;
+      }
+    }
+  }
+
+  &[data-theme='light'] {
+    max-width: 280px;
+    margin: 0 auto;
+    border: none;
+    background-color: rgba(255, 255, 255, 0.9);
+
+    a {
+      box-shadow: none !important;
+      text-decoration: none;
+    }
+
+    span.cf-wrapper {
+      display: block;
+      padding: 15px;
+      font-size: 14px;
+      line-height: 1.4;
+      text-align: center;
+      font-family: Helvetica, Arial, sans-serif;
+      margin-left: auto;
+      margin-right: auto;
+
+      span.cf-img-wrapper {
+        display: block;
+        margin-bottom: 8px;
+
+        img.cf-img {
+          max-width: 130px;
+          position: relative;
+          margin: 0 auto;
+        }
+      }
+
+      span.cf-text {
+        color: rgba(0, 0, 0, 0.6);
+
+        strong {
+          color: #111111;
+        }
+
+        span.cf-cta {
+          text-decoration: underline;
+          color: #2c6ac7;
+        }
+      }
+
+      a.cf-powered-by {
+        margin-top: 5px;
+        font-size: 11px;
+        display: block;
+        color: rgba(0, 0, 0, 0.7);
+        text-align: center;
+      }
+    }
+  }
+}

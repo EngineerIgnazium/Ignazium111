@@ -2,17 +2,10 @@ require "sidekiq/web"
 Sidekiq::Web.set :session_secret, Rails.application.credentials[:secret_key_base]
 
 Rails.application.routes.draw do
-  scope module: "buttercms" do
-    get "/categories/:slug" => "categories#show", :as => :buttercms_category
-    get "/author/:slug" => "authors#show", :as => :buttercms_author
-
-    get "/blog/rss" => "feeds#rss", :format => "rss", :as => :buttercms_blog_rss
-    get "/blog/atom" => "feeds#atom", :format => "atom", :as => :buttercms_blog_atom
-    get "/blog/sitemap.xml" => "feeds#sitemap", :format => "xml", :as => :buttercms_blog_sitemap
-
-    get "/blog(/page/:page)" => "posts#index", :defaults => {page: 1}, :as => :buttercms_blog
-    get "/blog/:slug" => "posts#show", :as => :buttercms_post
+  %w[403 404 422 500].each do |code|
+    get code, controller: :errors, action: :error, code: code
   end
+
   mount LetterOpenerWeb::Engine, at: "/letter_opener" if Rails.env.development?
 
   authenticate :user, lambda { |user| AuthorizedUser.new(user || User.new).can_admin_system? } do
@@ -21,11 +14,18 @@ Rails.application.routes.draw do
   end
   resources :split_experiments, only: [:update, :destroy]
 
+  root to: "pages#index"
+
   devise_for :users, controllers: {
     sessions: "sessions",
-    invitations: "invitations",
-    omniauth_callbacks: "omniauth_callbacks",
+    invitations: "invitations"
   }
+
+  # resource :global_stats, only: [:show], defaults: {format: :json}
+
+  scope "/pixel/:pixel_id/impression/:impression_id" do
+    resource :pixel_conversions, only: [:create], path: "conversions"
+  end
 
   resources :jobs, only: [:index]
   resources :job_posting_prospects, except: [:index, :destroy], path: "/jobs/listings"
@@ -35,33 +35,27 @@ Rails.application.routes.draw do
   end
   resources :job_postings, except: [:new, :create], path: "/jobs/directory"
 
-  root to: "pages#index"
-
   resource :pricing, only: [:show]
   resource :search, only: [:show], controller: :search
-  resources :websites, only: [:index]
   resources :administrator_invitations, only: [:update], path: "/administrator/invitations"
   resource :administrator_dashboards, only: [:show], path: "/dashboards/administrator"
   resource :advertiser_dashboards, only: [:show], path: "/dashboards/advertiser"
   resource :publisher_dashboards, only: [:show], path: "/dashboards/publisher"
-  resources :campaign_searches, only: [:create, :update, :destroy]
-  resources :creative_searches, only: [:create, :update, :destroy]
   resources :job_posting_searches, only: [:create, :update, :destroy], path: "/jobs/searches"
-  resources :organization_searches, only: [:create, :update, :destroy]
-  resources :property_searches, only: [:create, :update, :destroy]
   resources :applicant_searches, only: [:create, :update, :destroy]
-  resources :user_searches, only: [:create, :update, :destroy]
-  resource :creative_options, only: [:show]
 
   resources :organizations
   scope "/organization/:organization_id/" do
-    resources :organization_transactions, path: "/transactions"
-    resources :users, path: "/members", as: :organization_users
-    resources :comments, only: [:index], as: :organization_comments
-    resources :events, only: [:index], as: :organization_events
-    resources :versions, only: [:index], as: :organization_versions, path: "/revisions"
+    resources :organization_comments, only: [:index], path: "/comments"
+    resources :pixels
     resources :organization_reports, except: [:edit], as: :organization_reports, path: "/reports"
+    resources :organization_transactions, path: "/transactions"
+    resources :organization_users, path: "/members", as: :organization_users
+    resources :events, only: [:index], as: :organization_events
+    resources :scheduled_organization_reports, only: [:create, :destroy], as: :scheduled_organization_reports, path: "/scheduled_reports"
+    resources :versions, only: [:index], as: :organization_versions, path: "/revisions"
   end
+  resource :organization_invites, only: [:create]
 
   scope "/jobs", manage_scope: true do
     resources :job_postings, only: [:index, :edit, :update, :destroy], path: "/manage", as: :manage_job_postings
@@ -69,25 +63,27 @@ Rails.application.routes.draw do
 
   # polymorphic based on: app/models/concerns/imageable.rb
   scope "/imageables/:imageable_gid/" do
-    resources :image_searches, only: [:create, :update, :destroy]
     resources :images, except: [:show]
   end
 
   resources :versions, only: [:show, :update]
   resources :comments, only: [:create, :destroy]
+  resources :audiences, only: [:index]
 
+  resources :emails, only: [:index, :show], path: "/inbox"
+
+  resources :campaign_bundles, only: [:new, :create, :index, :show]
   resources :campaigns
   scope "/campaigns/:campaign_id" do
-    resource :campaign_targeting, only: [:show], path: "/targeting"
-    resource :campaign_dashboards, only: [:show], path: "/overview"
-    resources :campaign_reports, only: [:create], path: "/reports"
-    resources :campaign_dailies, only: [:index], path: "/dailies"
-    resources :campaign_properties, only: [:index, :update], path: "/properties"
+    resources :campaign_comments, only: [:index], path: "/comments"
     resources :campaign_countries, only: [:index], path: "/countries"
     resources :campaign_creatives, only: [:index], path: "/creatives"
-    resources :versions, only: [:index], as: :campaign_versions, path: "/revisions"
-    resources :comments, only: [:index], as: :campaign_comments
+    resources :campaign_dailies, only: [:index], path: "/dailies"
+    resources :campaign_properties, only: [:index, :update], path: "/properties"
+    resources :campaign_reports, only: [:create], path: "/reports"
+    resources :campaign_estimates, only: [:show], path: "/estimate"
     resources :events, only: [:index], as: :campaign_events
+    resources :versions, only: [:index], as: :campaign_versions, path: "/revisions"
   end
 
   resources :creatives
@@ -95,8 +91,6 @@ Rails.application.routes.draw do
     resources :events, only: [:index], as: :creative_events
     resource :creative_previews, only: [:show], path: "/preview/:template/:theme"
   end
-
-  resources :coupons, except: [:show]
 
   # this action should semantically be a `create`,
   # but we are using `show` because it renders the pixel image that creates the impression record
@@ -108,7 +102,7 @@ Rails.application.routes.draw do
     resource :impression_uplifts, only: [:create], path: "/uplift"
   end
 
-  # TODO: deprecate legacy support on 2019-04-01
+  # DEPRECATE: deprecate legacy support on 2019-04-01
   # Legacy embed script support
   get "/scripts/:legacy_property_id/embed.js", to: "advertisements#show"
   # Legacy impressions api support
@@ -118,17 +112,16 @@ Rails.application.routes.draw do
   resources :properties do
     resource :property_screenshots, only: [:update]
   end
+
   scope "/properties/:property_id" do
-    resource :property_instructions, only: [:show], path: "/instructions"
-    resource :property_keywords, only: [:show], path: "/keywords"
-    resource :property_earnings, only: [:show], path: "/earnings"
-    resource :property_dashboards, only: [:show], path: "/overview"
-    resources :property_campaigns, only: [:index], path: "/campaigns"
-    resources :versions, only: [:index], as: :property_versions, path: "/revisions"
-    resource :advertisements, only: [:show], path: "/funder", constraints: ->(req) { %w[js html json].include? req.format }
     resource :advertisement_tests, only: [:show], constraints: ->(req) { %w[js html json svg].include? req.format } if Rails.env.test?
-    resources :comments, only: [:index], as: :property_comments
+    resource :advertisements, only: [:show], path: "/funder", constraints: ->(req) { %w[js html json].include? req.format }
+    resource :property_earnings, only: [:show], path: "/earnings"
+    resource :property_instructions, only: [:show], path: "/instructions"
     resources :events, only: [:index], as: :property_events
+    resources :property_campaigns, only: [:index], path: "/campaigns"
+    resources :property_comments, only: [:index], path: "/comments"
+    resources :versions, only: [:index], as: :property_versions, path: "/revisions"
     get "/sponsor", to: "advertisements#show", constraints: ->(req) { req.format == "svg" }, defaults: {format: :svg}, as: :sponsor
     get "/visit-sponsor", to: "advertisement_clicks#show", as: :sponsor_visit
   end
@@ -142,21 +135,19 @@ Rails.application.routes.draw do
   resource :user_passwords, only: [:edit, :update], path: "/password"
 
   scope "/users/:user_id" do
-    resources :campaigns, only: [:index], as: :user_campaigns
-    resources :properties, only: [:index], as: :user_properties
-    resources :creatives, only: [:index], as: :user_creatives
-    resources :versions, only: [:index], as: :user_versions, path: "/revisions"
-    resources :comments, only: [:index], as: :user_comments
-    resources :events, only: [:index], as: :user_events
     resource :identicon, only: [:show], format: :png, as: :user_identicon, path: "/identicon.png"
     resource :impersonations, only: [:update], as: :user_impersonation, path: "/impersonate"
+    resources :creatives, only: [:index], as: :user_creatives
+    resources :events, only: [:index], as: :user_events
+    resources :user_campaigns, only: [:index], path: "/campaigns"
+    resources :user_comments, only: [:index], path: "/comments"
+    resources :user_emails, only: [:index, :show], path: "/emails"
+    resources :user_properties, only: [:index], path: "/properties"
+    resources :versions, only: [:index], as: :user_versions, path: "/revisions"
   end
   get "/stop_user_impersonation", to: "impersonations#destroy", as: :stop_user_impersonation
 
-  resource :newsletter_subscription, only: [:create]
-  resources :advertisers, only: [:index]
-  resources :publishers, only: [:index]
-
+  resource :demo, only: [:show, :update]
   resources :advertisement_previews, param: :campaign_id, only: [:index, :show], path: "ad-previews"
   # NOTE: this is non restful and bad practice (don't do this)
   #       this route is passable for now since it's an admin only page supporting an edge case
@@ -183,7 +174,4 @@ Rails.application.routes.draw do
   resource :async_publisher_revenue_stat_card, only: [:show]
 
   resources :wordpress_snippets, only: [:show]
-
-  # IMPORTANT: leave as last route so it doesn't override others
-  get "/*id", to: "pages#show", as: :page, constraints: {id: /(?!rails).*/}
 end

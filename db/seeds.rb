@@ -1,314 +1,201 @@
 # frozen_string_literal: true
 
-require "benchmark"
-require "csv"
-require "faker"
-require "fileutils"
-require_relative "./campaign_seeder"
 require_relative "./impression_seeder"
 
-unless Rails.env.development? || ENV["ALLOW_SEED"] == "true"
-  puts "SEEDS ARE FOR DEVELOPMENT ONLY!"
+ActionMailer::Base.perform_deliveries = false
+
+unless Rails.env.development? || ENV["ALLOW_SEED"] == true
+  puts "Seeds are for development only."
   exit 1
 end
 
-class Seeder
-  def self.run
-    new.call
-  end
-
-  def initialize
-    @user_id = User.maximum(:id).to_i
-    @property_id = Property.maximum(:id).to_i
-    @emails = User.all.pluck(:email).each_with_object({}) { |email, memo|
-      memo[email] = true
-    }
-    @impressions = ENV["IMPRESSIONS"].to_i
-    @impressions = 100_000 if @impressions < 100_000
-    @months = (ENV["MONTHS"] || 12).to_i
-    @months = @months.to_i.zero? ? 12 : @months.to_i
-    @months = 12 if @months < 12
-  end
-
-  def call
-    print "Seeding...".ljust(48)
-    puts "please be patient"
-    benchmark = Benchmark.measure {
-      seed_organizations
-      seed_users
-      seed_campaigns
-      seed_properties
-      ImpressionSeeder.run(@impressions, @months)
-    }
-    print "Seeding finished...".ljust(96)
-    puts benchmark
-  end
-
-  private
-
-  def seed_organizations
-    print "Seeding organizations...".ljust(48)
-    benchmark = Benchmark.measure {
-      organizations = build_organizations
-      import_csv :organizations, create_csv(organizations, Rails.root.join("tmp/organizations.csv")), Organization.sequence_name unless organizations.blank?
-    }
-    print "verified [#{Organization.count.to_s.rjust(8)}] total users".ljust(48)
-    puts benchmark
-  end
-
-  def seed_users
-    print "Seeding users...".ljust(48)
-    benchmark = Benchmark.measure {
-      users = build_administrators
-      users.concat build_advertisers
-      users.concat build_publishers
-      import_csv :users, create_csv(users, Rails.root.join("tmp/users.csv")), User.sequence_name unless users.blank?
-    }
-    print "verified [#{User.count.to_s.rjust(8)}] total users".ljust(48)
-    puts benchmark
-  end
-
-  def build_organizations
-    target = 150
-    count = Organization.count + 1
-    return [] if count >= target
-    attributes = (count..target).map { |i|
-      {
-        id: i + 1,
-        name: "#{Faker::SiliconValley.company} #{SecureRandom.hex.upcase[0, 6]}",
-        balance_cents: [0, 50000, 250000].sample,
-        balance_currency: "USD",
-        created_at: 3.days.ago,
-        updated_at: 3.days.ago,
-      }.values
-    }
-
-    attributes.unshift({
-      id: 1,
-      name: "CodeFund",
-      balance_cents: 0,
-      balance_currency: "USD",
-      created_at: 3.days.ago,
-      updated_at: 3.days.ago,
-    }.values)
-
-    attributes
-  end
-
-  def build_administrators
-    return [] unless User.administrators.count.zero?
-    return [] if @emails["admin@codefund.io"]
-
-    attributes = user_attributes.merge(
-      "id" => @user_id += 1,
-      "organization_id" => 1,
-      "company_name" => "CodeFund",
-      "email" => "admin@codefund.io",
-      "roles" => "{#{ENUMS::USER_ROLES::ADMINISTRATOR}}",
-    )
-    [attributes.values]
-  end
-
-  def build_advertisers
-    target = 175
-    count = User.advertisers.count
-    return [] if count >= target
-    organization_ids = Organization.where("id > 1").pluck(:id)
-    (count..target).map do
-      user_attributes.merge(
-        "id" => @user_id += 1,
-        "organization_id" => organization_ids.sample,
-        "roles" => "{#{ENUMS::USER_ROLES::ADVERTISER}}"
-      ).values
-    end
-  end
-
-  def build_publishers
-    target = 1000
-    count = User.publishers.count
-    return [] if count >= target
-    (count..target).map do
-      user_attributes.merge(
-        "id" => @user_id += 1,
-        "roles" => "{#{ENUMS::USER_ROLES::PUBLISHER}}"
-      ).values
-    end
-  end
-
-  def seed_campaigns
-    print "Seeding campaigns...".ljust(48)
-    benchmark = Benchmark.measure {
-      User.advertisers.each do |advertiser|
-        next if advertiser.campaigns.count > 0
-        add_small_image advertiser
-        add_large_image advertiser
-        add_wide_image advertiser
-        generate_creatives advertiser
-        generate_campaigns advertiser
-      end
-    }
-    print "verified [#{Campaign.count.to_s.rjust(8)}] total campaigns".ljust(48)
-    puts benchmark
-  end
-
-  def add_small_image(advertiser)
-    advertiser.images.attach io: File.open(Rails.root.join("app/assets/images/seeds/seed-200x200.png")),
-                             filename: "seed-200x200.png",
-                             content_type: "image/png",
-                             metadata: {
-                               identified: true,
-                               width: 200,
-                               height: 200,
-                               analyzed: true,
-                               name: "seed-200x200.png",
-                               format: ENUMS::IMAGE_FORMATS::SMALL,
-                             }
-  end
-
-  def add_large_image(advertiser)
-    advertiser.images.attach io: File.open(Rails.root.join("app/assets/images/seeds/seed-260x200.png")),
-                             filename: "seed-260x200.png",
-                             content_type: "image/png",
-                             metadata: {
-                               identified: true,
-                               width: 260,
-                               height: 200,
-                               analyzed: true,
-                               name: "seed-260x200.png",
-                               format: ENUMS::IMAGE_FORMATS::LARGE,
-                             }
-  end
-
-  def add_wide_image(advertiser)
-    advertiser.images.attach io: File.open(Rails.root.join("app/assets/images/seeds/seed-512x320.jpg")),
-                             filename: "seed-512x320.jpg",
-                             content_type: "image/jpeg",
-                             metadata: {
-                               identified: true,
-                               width: 512,
-                               height: 320,
-                               analyzed: true,
-                               name: "seed-512x320.jpg",
-                               format: ENUMS::IMAGE_FORMATS::WIDE,
-                             }
-  end
-
-  def generate_creatives(advertiser)
-    5.times do
-      creative = Creative.create(
-        user: advertiser,
-        organization: advertiser.organization,
-        name: Faker::SiliconValley.company,
-        headline: Faker::SiliconValley.invention,
-        body: Faker::SiliconValley.motto,
-      )
-      advertiser.images.each do |image|
-        CreativeImage.create creative: creative, image: image
-      end
-    end
-  end
-
-  def campaign_dates
-    @campaign_dates ||= (Date.current.advance(months: @months * -1)..Date.current).to_a
-  end
-
-  def generate_campaigns(advertiser)
-    rand(2..8).times do
-      CampaignSeeder.create_campaign advertiser, campaign_dates.sample
-    end
-  end
-
-  def seed_properties
-    print "Seeding properties...".ljust(48)
-    benchmark = Benchmark.measure {
-      properties = User.publishers.each_with_object([]) { |publisher, memo|
-        next if publisher.properties.count > 0
-        rand(1..2).times.each do
-          property = Property.new(
-            id: @property_id += 1,
-            user_id: publisher.id,
-            property_type: ENUMS::PROPERTY_TYPES.values.sample,
-            status: rand(5).zero? ? ENUMS::PROPERTY_STATUSES.values.sample : ENUMS::PROPERTY_STATUSES::ACTIVE,
-            name: "#{Faker::SiliconValley.invention} #{SecureRandom.hex.upcase[0, 6]}",
-            url: Faker::SiliconValley.url,
-            ad_template: ENUMS::AD_TEMPLATES.values.sample,
-            ad_theme: ENUMS::AD_THEMES.values.sample,
-            language: ENUMS::LANGUAGES::ENGLISH,
-            prohibit_fallback_campaigns: false,
-            created_at: Time.current,
-            updated_at: Time.current,
-          )
-          attributes = property.attributes.merge(
-            "keywords" => "{#{ENUMS::KEYWORDS.keys.sample(25).join(",")}}",
-            "prohibited_advertiser_ids" => "{}"
-          )
-          memo << attributes.values
-        end
-      }
-      import_csv :properties, create_csv(properties, Rails.root.join("tmp/properties.csv")), Property.sequence_name unless properties.blank?
-    }
-    print "verified [#{Property.count.to_s.rjust(8)}] total properties".ljust(48)
-    puts benchmark
-  end
-
-  def create_csv(list, csv_path)
-    CSV.open(csv_path, "wb") do |csv|
-      list.each do |record|
-        csv << record
-      end
-    end
-    csv_path
-  end
-
-  def import_csv(table_name, csv_path, sequence_name)
-    model = table_name.to_s.classify.constantize
-    config = model.connection_config
-    command = ["PGPASSWORD=#{config[:password]} cat #{csv_path} | psql #{config[:database]}"]
-    command << "-h #{config[:host]}" if config[:host].present?
-    command << "-p #{config[:port]}" if config[:port].present?
-    command << "-U #{config[:username]}" if config[:username].present?
-    command << "-c \"copy #{table_name} from stdin CSV\""
-    system command.join(" ")
-
-    ActiveRecord::Base.connection.execute "SELECT SETVAL('#{sequence_name}', (SELECT MAX(id) FROM #{table_name}) + 1);"
-  rescue => e
-    puts "Failed to copy #{csv_path} to Postgres! #{e}"
-  ensure
-    FileUtils.rm_f csv_path
-  end
-
-  def user_attributes
-    @encrypted_password ||= User.new(password: "secret").encrypted_password
-    first_name = Faker::Name.first_name
-    last_name = Faker::Name.last_name
-    email = Faker::Internet.email("#{first_name} #{last_name} #{SecureRandom.hex[0, 8]}", "-")
-    user = User.new(
-      first_name: first_name,
-      last_name: last_name,
-      company_name: Faker::SiliconValley.company,
-      email: email,
-      encrypted_password: @encrypted_password,
-      confirmation_token: Devise.friendly_token,
-      confirmed_at: 1.day.ago,
-      confirmation_sent_at: 2.days.ago,
-      invitation_token: nil,
-      invitation_created_at: 3.days.ago,
-      invitation_sent_at: 3.days.ago,
-      invitation_accepted_at: 1.day.ago,
-      invited_by_type: "User",
-      invited_by_id: 1,
-      invitations_count: 1,
-      us_resident: true,
-      github_username: Faker::Twitter.screen_name,
-      twitter_username: Faker::Twitter.screen_name,
-      created_at: 3.days.ago,
-      updated_at: 3.days.ago,
-    )
-    user.attributes.merge(
-      "roles" => "{}",
-      "skills" => "{}",
-    )
-  end
+def Organization.default_bulk_columns
+  column_names
 end
 
-Seeder.run
+def random_name(prefix)
+  "#{prefix}-#{SecureRandom.hex.upcase[0, 8]}"
+end
+
+# CODEFUND ...................................................................................................
+puts "Seeding CodeFund organization and users"
+codefund = Organization.where(id: 1).first_or_create!(name: random_name("CodeFund"), creative_approval_needed: false)
+admin = User.where(id: 1, organization: codefund).first_or_initialize(
+  email: "admin@codefund.io",
+  first_name: Faker::Name.first_name,
+  last_name: Faker::Name.last_name,
+  confirmed_at: Time.current,
+  roles: [ENUMS::USER_ROLES::ADMINISTRATOR]
+)
+admin.password = admin.password_confirmation = "secret"
+admin.save!
+User.connection.exec_query "ALTER SEQUENCE users_id_seq RESTART WITH #{User.maximum(:id) + 1}"
+
+# PUBLISHERS .................................................................................................
+unless User.publishers.exists?
+  puts "Seeding publishers"
+  publishers = 250.times.map {
+    {
+      email: "#{random_name "user"}@codefund.io",
+      encrypted_password: admin.encrypted_password,
+      first_name: Faker::Name.first_name,
+      last_name: Faker::Name.last_name,
+      roles: [ENUMS::USER_ROLES::PUBLISHER],
+      confirmed_at: Time.current,
+      created_at: Time.current,
+      updated_at: Time.current
+    }
+  }
+  User.insert_all publishers
+end
+
+# PROPERTIES .................................................................................................
+unless Property.exists?
+  puts "Seeding properties"
+  properties = User.publishers.map { |publisher|
+    audience = [Audience.javascript_and_frontend, Audience.web_development_and_backend, Audience.blockchain].sample
+    {
+      user_id: publisher.id,
+      property_type: ENUMS::PROPERTY_TYPES::WEBSITE,
+      audience_id: audience.id,
+      keywords: audience.keywords,
+      status: ENUMS::PROPERTY_STATUSES::ACTIVE,
+      name: random_name("Property"),
+      url: Faker::Internet.url(scheme: "https"),
+      language: ENUMS::LANGUAGES::ENGLISH,
+      revenue_percentage: 0.7,
+      ad_template: ENUMS::AD_TEMPLATES::DEFAULT,
+      ad_theme: ENUMS::AD_THEMES::LIGHT,
+      created_at: Time.current,
+      updated_at: Time.current
+    }
+  }
+  Property.insert_all properties
+end
+
+# ADVERTISERS ................................................................................................
+unless User.advertisers.exists?
+  puts "Seeding organizations and advertisers"
+  Organization.insert_all 30.times.map { |index|
+    {
+      id: index + 2,
+      name: random_name(Faker::Company.name),
+      balance_cents: rand(0..500000),
+      created_at: Time.current,
+      updated_at: Time.current
+    }
+  }
+  Organization.connection.exec_query "ALTER SEQUENCE organizations_id_seq RESTART WITH #{Organization.maximum(:id) + 1}"
+  advertisers = Organization.where.not(id: 1).pluck(:id).map { |organization_id|
+    {
+      organization_id: organization_id,
+      email: "#{random_name "user"}@codefund.io",
+      encrypted_password: admin.encrypted_password,
+      first_name: Faker::Name.first_name,
+      last_name: Faker::Name.last_name,
+      roles: [ENUMS::USER_ROLES::ADVERTISER],
+      created_at: Time.current,
+      updated_at: Time.current
+    }
+  }
+  User.insert_all advertisers
+end
+
+# CREATIVES ..................................................................................................
+unless Creative.exists?
+  puts "Seeding creatives"
+  creatives = []
+  User.advertisers.each do |advertiser|
+    creatives.concat(
+      5.times.map {
+        {
+          organization_id: advertiser.organization_id,
+          user_id: advertiser.id,
+          name: random_name("Creative"),
+          cta: random_name("CTA"),
+          headline: random_name("Headline"),
+          body: "This is a premium campaign",
+          status: ENUMS::CREATIVE_STATUSES::ACTIVE,
+          created_at: Time.current,
+          updated_at: Time.current
+        }
+      }
+    )
+  end
+  Creative.insert_all creatives
+end
+
+# CAMPAIGN BUNDLES ...........................................................................................
+unless CampaignBundle.exists?
+  puts "Seeding campaign bundles"
+  campaign_bundles = User.advertisers.map { |advertiser|
+    regions = [
+      [Region.asia_eastern, Region.asia_southern_and_western],
+      [Region.europe, Region.europe_eastern, Region.australia_and_new_zealand],
+      [Region.americas_northern, Region.americas_central_southern],
+      [Region.americas_northern]
+    ].sample
+    start_date = rand(1..12).months.ago
+    {
+      organization_id: advertiser.organization_id,
+      user_id: advertiser.id,
+      name: random_name("CampaignBundle"),
+      start_date: start_date.to_date,
+      end_date: start_date.advance(months: 2).to_date,
+      region_ids: regions.map(&:id),
+      created_at: Time.current,
+      updated_at: Time.current
+    }
+  }
+  CampaignBundle.insert_all campaign_bundles
+end
+
+# CAMPAIGNS ..................................................................................................
+unless Campaign.exists?
+  puts "Seeding campaigns"
+  campaigns = CampaignBundle.includes(:user).map { |campaign_bundle|
+    creative_ids = campaign_bundle.user.creatives.sample(3).map(&:id)
+    total_budget_cents = rand(50000...250000)
+    audiences = [
+      [Audience.blockchain],
+      [Audience.javascript_and_frontend, Audience.web_development_and_backend],
+      [Audience.javascript_and_frontend]
+    ].sample
+    {
+      campaign_bundle_id: campaign_bundle.id,
+      start_date: campaign_bundle.start_date,
+      end_date: campaign_bundle.end_date,
+      organization_id: campaign_bundle.organization_id,
+      user_id: campaign_bundle.user_id,
+      creative_id: creative_ids.first,
+      creative_ids: creative_ids,
+      status: ENUMS::CAMPAIGN_STATUSES::ACTIVE,
+      name: random_name("Campaign"),
+      url: Faker::Internet.url(scheme: "https"),
+      total_budget_cents: total_budget_cents,
+      daily_budget_cents: (total_budget_cents / 90.to_f).round,
+      hourly_budget_cents: (total_budget_cents / 720.to_f).round,
+      audience_ids: audiences.map(&:id),
+      keywords: audiences.map(&:keywords).flatten,
+      region_ids: campaign_bundle.regions.map(&:id),
+      country_codes: campaign_bundle.regions.map(&:country_codes).flatten,
+      created_at: Time.current,
+      updated_at: Time.current
+    }
+  }
+  Campaign.insert_all campaigns
+end
+
+ImpressionSeeder.run
+
+puts "Seeding complete"
+puts "--------------------"
+puts "Administrators: #{User.administrators.count}"
+puts "Publishers: #{User.publishers.count}"
+puts "Properties: #{Property.count}"
+puts "Organizations: #{Organization.count}"
+puts "Advertisers: #{User.advertisers.count}"
+puts "Creatives: #{Creative.count}"
+puts "Campaigns: #{Campaign.count}"
+sleep 10
+puts "Impressions: #{Impression.count}"

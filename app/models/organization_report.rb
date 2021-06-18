@@ -3,15 +3,19 @@
 # Table name: organization_reports
 #
 #  id              :bigint           not null, primary key
-#  organization_id :bigint           not null
-#  title           :string           not null
-#  status          :string           default("pending"), not null
-#  start_date      :date             not null
+#  campaign_ids    :bigint           default([]), not null, is an Array
 #  end_date        :date             not null
-#  campaign_ids    :text             default([]), is an Array
 #  pdf_url         :text
+#  start_date      :date             not null
+#  status          :string           default("pending"), not null
+#  title           :string           not null
 #  created_at      :datetime         not null
 #  updated_at      :datetime         not null
+#  organization_id :bigint           not null
+#
+# Indexes
+#
+#  index_organization_reports_on_organization_id  (organization_id)
 #
 
 class OrganizationReport < ApplicationRecord
@@ -34,7 +38,7 @@ class OrganizationReport < ApplicationRecord
   # scopes ....................................................................
 
   # additional config (i.e. accepts_nested_attribute_for etc...) ..............
-  attr_accessor :date_range
+  attr_accessor :date_range, :recipients
   tag_columns :campaign_ids
   has_one_attached :pdf
 

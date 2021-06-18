@@ -12,6 +12,8 @@
 /tmp/*
 !/log/.keep
 !/tmp/.keep
+*.swp
+*.swo
 
 # Ignore uploaded files in development
 /storage/*
@@ -31,12 +33,21 @@
 yarn-debug.log*
 .yarn-integrity
 
+# If you want to use `heroku local`, create the following file with the content `exec "$@"`
+/bin/start-pgbouncer-stunnel
+
 .env
 .teamocil.yml
+.tmuxinator.yml
 .mertrc
 .tool-versions
 /db/maxmind
+/db/data/*
 *.dump
 legacy
 lib/tasks/impressions.rake
 /coverage
+.vscode
+stats.json
+*.tmp
+*.log

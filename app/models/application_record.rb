@@ -2,8 +2,12 @@ class ApplicationRecord < ActiveRecord::Base
   include GlobalID::Identification
 
   self.abstract_class = true
+  connects_to database: {writing: :primary, reading: :primary_replica}
+  delegate :local_ephemeral_cache, to: :Rails
 
   class << self
+    delegate :local_ephemeral_cache, to: :Rails
+
     def sanitize_sql_value(value)
       sanitize_sql_array ["?", value]
     end

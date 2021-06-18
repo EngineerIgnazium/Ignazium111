@@ -1,38 +1,31 @@
-const { environment } = require('@rails/webpacker');
-const erb = require('./loaders/erb');
-const webpack = require('webpack');
+const { environment } = require('@rails/webpacker')
+const erb = require('./loaders/erb')
+const webpack = require('webpack')
 
-environment.config.merge({
-  resolve: {
-    alias: {
-      jquery: 'theme/vendor/jquery/dist/jquery',
-      $: 'theme/vendor/jquery/dist/jquery',
-      'popper.js': 'theme/vendor/popper.js/dist/popper',
-      Chartist: 'theme/vendor/chartist/dist/chartist.min',
-      Typed: 'theme/vendor/typed.js/lib/typed.min',
-      SVGInjector: 'theme/vendor/svg-injector/dist/svg-injector.min',
-      Noty: 'node_modules/noty/lib/noty.min',
-      Circles: 'theme/vendor/circles/circles.min',
-      ClipboardJS: 'theme/vendor/clipboard/dist/clipboard.min',
-    },
-  },
-});
+// Prevent fingerprinting/hashing of predetermined packs
+// SEE: https://github.com/rails/webpacker/issues/1310#issuecomment-623159628
+const plainPacks = { code_fund_conversion: 'js/conversion.js' }
+environment.config.set('output.filename', chunkData => {
+  if (plainPacks[chunkData.chunk.name]) return plainPacks[chunkData.chunk.name]
+  return 'js/[name]-[contenthash].js'
+})
 
 environment.plugins.prepend(
   'Provide',
   new webpack.ProvidePlugin({
     jQuery: 'jquery',
-    '$': 'jquery',
+    $: 'jquery',
     'window.jQuery': 'jquery',
-    Popper: 'popper.js',
-    Chartist: 'Chartist',
-    Typed: 'Typed',
-    SVGInjector: 'SVGInjector',
-    Noty: 'Noty',
-    Circles: 'Circles',
-    ClipboardJS: 'ClipboardJS',
-  })
-);
+    Popper: ['popper.js', 'default'],
+    Chart: 'chart.js',
+    Typed: 'typed.js',
+    SVGInjector: 'svg-injector',
+    Noty: 'noty',
+    ClipboardJS: 'clipboard'
+  }),
+  'MomentContextReplacement',
+  new webpack.ContextReplacementPlugin(/moment[\/\\]locale$/, /en|pl/)
+)
 
-environment.loaders.append('erb', erb);
-module.exports = environment;
+environment.loaders.prepend('erb', erb)
+module.exports = environment

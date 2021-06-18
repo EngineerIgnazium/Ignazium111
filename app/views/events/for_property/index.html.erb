@@ -1,7 +1,8 @@
-<%= render layout: "/properties/show_layout", locals: { property: @eventable } do %>
-  <h3 class="h5 mb-3">
-    Events
-    <small class="text-muted d-block">List of events related to this property</small>
-  </h3>
-  <%= render "/events/table", eventable: @eventable, events: @events %>
+<%= render(PageComponent.new(subject: @eventable)) do |component| %>
+  <%= component.with(:header) { render(Page::HeaderComponent.new(title: "Events", subtitle: "List of events related to this property")) } %>
+  <% component.with(:body) do %>
+    <%= render CardComponent.new do %>
+      <%= render("/events/table", eventable: @eventable, events: @events) %>
+    <% end %>
+  <% end %>
 <% end %>

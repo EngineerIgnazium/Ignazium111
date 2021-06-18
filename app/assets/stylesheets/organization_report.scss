@@ -119,6 +119,12 @@ td a {
   color: #15003e;
 }
 
+.content .h4 {
+  font-size: 15pt;
+  font-weight: 700;
+  text-align: center;
+}
+
 .content p.lead {
   font-size: 14pt;
   font-weight: 300;
@@ -217,8 +223,8 @@ span.badge-removed {
   white-space: nowrap;
   vertical-align: baseline;
   border-radius: 0.25rem;
-  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out,
-    box-shadow 0.15s ease-in-out;
+  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out,
+    border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
 thead th {

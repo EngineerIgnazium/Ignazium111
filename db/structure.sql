@@ -51,9 +51,88 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA public;
 COMMENT ON EXTENSION pgcrypto IS 'cryptographic functions';
 
 
+--
+-- Name: tablefunc; Type: EXTENSION; Schema: -; Owner: -
+--
+
+CREATE EXTENSION IF NOT EXISTS tablefunc WITH SCHEMA public;
+
+
+--
+-- Name: EXTENSION tablefunc; Type: COMMENT; Schema: -; Owner: -
+--
+
+COMMENT ON EXTENSION tablefunc IS 'functions that manipulate whole tables, including crosstab';
+
+
 SET default_tablespace = '';
 
-SET default_with_oids = false;
+--
+-- Name: action_mailbox_inbound_emails; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.action_mailbox_inbound_emails (
+    id bigint NOT NULL,
+    status integer DEFAULT 0 NOT NULL,
+    message_id character varying NOT NULL,
+    message_checksum character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: action_mailbox_inbound_emails_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.action_mailbox_inbound_emails_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: action_mailbox_inbound_emails_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.action_mailbox_inbound_emails_id_seq OWNED BY public.action_mailbox_inbound_emails.id;
+
+
+--
+-- Name: action_text_rich_texts; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.action_text_rich_texts (
+    id bigint NOT NULL,
+    name character varying NOT NULL,
+    body text,
+    record_type character varying NOT NULL,
+    record_id bigint NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: action_text_rich_texts_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.action_text_rich_texts_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: action_text_rich_texts_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.action_text_rich_texts_id_seq OWNED BY public.action_text_rich_texts.id;
+
 
 --
 -- Name: active_storage_attachments; Type: TABLE; Schema: public; Owner: -
@@ -137,6 +216,88 @@ CREATE TABLE public.ar_internal_metadata (
 
 
 --
+-- Name: audiences; Type: VIEW; Schema: public; Owner: -
+--
+
+CREATE VIEW public.audiences AS
+ SELECT 1 AS id,
+    'Blockchain'::text AS name,
+    'blockchain_ecpm_cents'::text AS ecpm_column_name,
+    '{Blockchain,Cryptography,Solidity}'::text[] AS keywords
+UNION ALL
+ SELECT 2 AS id,
+    'CSS & Design'::text AS name,
+    'css_and_design_ecpm_cents'::text AS ecpm_column_name,
+    '{"CSS & Design"}'::text[] AS keywords
+UNION ALL
+ SELECT 3 AS id,
+    'DevOps'::text AS name,
+    'dev_ops_ecpm_cents'::text AS ecpm_column_name,
+    '{DevOps,Security,Serverless}'::text[] AS keywords
+UNION ALL
+ SELECT 4 AS id,
+    'Game Development'::text AS name,
+    'game_development_ecpm_cents'::text AS ecpm_column_name,
+    '{"Game Development","Virtual Reality"}'::text[] AS keywords
+UNION ALL
+ SELECT 5 AS id,
+    'JavaScript & Frontend'::text AS name,
+    'javascript_and_frontend_ecpm_cents'::text AS ecpm_column_name,
+    '{Angular,Dart,Frontend,JavaScript,React,VueJS}'::text[] AS keywords
+UNION ALL
+ SELECT 6 AS id,
+    'Miscellaneous'::text AS name,
+    'miscellaneous_ecpm_cents'::text AS ecpm_column_name,
+    '{C,D,"Developer Resources",Erlang,F#,Haskell,IoT,Julia,"Machine Learning",Other,Q,R,Rust,Scala}'::text[] AS keywords
+UNION ALL
+ SELECT 7 AS id,
+    'Mobile Development'::text AS name,
+    'mobile_development_ecpm_cents'::text AS ecpm_column_name,
+    '{Android,"Hybrid & Mobile Web",Kotlin,Objective-C,Swift,iOS}'::text[] AS keywords
+UNION ALL
+ SELECT 8 AS id,
+    'Web Development & Backend'::text AS name,
+    'web_development_and_backend_ecpm_cents'::text AS ecpm_column_name,
+    '{.NET,Backend,Database,Go,Groovy,Java,PHP,PL/SQL,Python,Ruby}'::text[] AS keywords;
+
+
+--
+-- Name: campaign_bundles; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.campaign_bundles (
+    id bigint NOT NULL,
+    organization_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    name character varying NOT NULL,
+    start_date date NOT NULL,
+    end_date date NOT NULL,
+    region_ids bigint[] DEFAULT '{}'::bigint[],
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: campaign_bundles_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.campaign_bundles_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: campaign_bundles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.campaign_bundles_id_seq OWNED BY public.campaign_bundles.id;
+
+
+--
 -- Name: campaigns; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -148,8 +309,8 @@ CREATE TABLE public.campaigns (
     fallback boolean DEFAULT false NOT NULL,
     name character varying NOT NULL,
     url text NOT NULL,
-    start_date date,
-    end_date date,
+    start_date date NOT NULL,
+    end_date date NOT NULL,
     core_hours_only boolean DEFAULT false,
     weekdays_only boolean DEFAULT false,
     total_budget_cents integer DEFAULT 0 NOT NULL,
@@ -173,7 +334,11 @@ CREATE TABLE public.campaigns (
     hourly_budget_currency character varying DEFAULT 'USD'::character varying NOT NULL,
     prohibited_property_ids bigint[] DEFAULT '{}'::bigint[] NOT NULL,
     creative_ids bigint[] DEFAULT '{}'::bigint[] NOT NULL,
-    paid_fallback boolean DEFAULT false
+    paid_fallback boolean DEFAULT false,
+    campaign_bundle_id bigint,
+    audience_ids bigint[] DEFAULT '{}'::bigint[] NOT NULL,
+    region_ids bigint[] DEFAULT '{}'::bigint[] NOT NULL,
+    ecpm_multiplier numeric DEFAULT 1.0 NOT NULL
 );
 
 
@@ -202,17 +367,17 @@ ALTER SEQUENCE public.campaigns_id_seq OWNED BY public.campaigns.id;
 
 CREATE TABLE public.comments (
     id bigint NOT NULL,
-    commentable_id bigint NOT NULL,
-    commentable_type character varying NOT NULL,
+    commentable_id bigint,
+    commentable_type character varying,
     title character varying,
     body text,
     subject character varying,
     user_id bigint NOT NULL,
     parent_id bigint,
-    lft integer,
-    rgt integer,
-    created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL
+    lft bigint,
+    rgt bigint,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
 );
 
 
@@ -371,7 +536,8 @@ CREATE TABLE public.daily_summaries (
     displayed_at_date date NOT NULL,
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL,
-    unique_ip_addresses_count integer DEFAULT 0 NOT NULL
+    unique_ip_addresses_count integer DEFAULT 0 NOT NULL,
+    fallback_clicks_count bigint DEFAULT 0 NOT NULL
 );
 
 
@@ -392,6 +558,90 @@ CREATE SEQUENCE public.daily_summaries_id_seq
 --
 
 ALTER SEQUENCE public.daily_summaries_id_seq OWNED BY public.daily_summaries.id;
+
+
+--
+-- Name: email_hierarchies; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.email_hierarchies (
+    ancestor_id bigint NOT NULL,
+    descendant_id bigint NOT NULL,
+    generations integer NOT NULL
+);
+
+
+--
+-- Name: email_users; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.email_users (
+    id bigint NOT NULL,
+    email_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    read_at timestamp without time zone
+);
+
+
+--
+-- Name: email_users_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.email_users_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: email_users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.email_users_id_seq OWNED BY public.email_users.id;
+
+
+--
+-- Name: emails; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.emails (
+    id bigint NOT NULL,
+    body text,
+    delivered_at timestamp without time zone NOT NULL,
+    delivered_at_date date NOT NULL,
+    recipients character varying[] DEFAULT '{}'::character varying[] NOT NULL,
+    sender character varying,
+    snippet text,
+    subject text,
+    action_mailbox_inbound_email_id bigint NOT NULL,
+    direction character varying DEFAULT 'inbound'::character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL,
+    in_reply_to character varying,
+    message_id character varying,
+    parent_id bigint
+);
+
+
+--
+-- Name: emails_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.emails_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: emails_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.emails_id_seq OWNED BY public.emails.id;
 
 
 --
@@ -617,7 +867,8 @@ CREATE TABLE public.organization_transactions (
     reference text,
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL,
-    gift boolean DEFAULT false
+    gift boolean DEFAULT false,
+    temporary boolean DEFAULT false
 );
 
 
@@ -641,6 +892,39 @@ ALTER SEQUENCE public.organization_transactions_id_seq OWNED BY public.organizat
 
 
 --
+-- Name: organization_users; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.organization_users (
+    id bigint NOT NULL,
+    organization_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    role character varying DEFAULT 'member'::character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: organization_users_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.organization_users_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: organization_users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.organization_users_id_seq OWNED BY public.organization_users.id;
+
+
+--
 -- Name: organizations; Type: TABLE; Schema: public; Owner: -
 --
 
@@ -650,7 +934,10 @@ CREATE TABLE public.organizations (
     balance_cents integer DEFAULT 0 NOT NULL,
     balance_currency character varying DEFAULT 'USD'::character varying NOT NULL,
     created_at timestamp without time zone NOT NULL,
-    updated_at timestamp without time zone NOT NULL
+    updated_at timestamp without time zone NOT NULL,
+    creative_approval_needed boolean DEFAULT true,
+    account_manager_user_id bigint,
+    url text
 );
 
 
@@ -674,13 +961,85 @@ ALTER SEQUENCE public.organizations_id_seq OWNED BY public.organizations.id;
 
 
 --
+-- Name: pixel_conversions; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pixel_conversions (
+    id bigint NOT NULL,
+    pixel_id uuid NOT NULL,
+    impression_id uuid,
+    impression_id_param character varying DEFAULT ''::character varying NOT NULL,
+    test boolean DEFAULT false NOT NULL,
+    pixel_name character varying DEFAULT ''::character varying NOT NULL,
+    pixel_value_cents integer DEFAULT 0 NOT NULL,
+    pixel_value_currency character varying DEFAULT 'USD'::character varying NOT NULL,
+    advertiser_id bigint,
+    publisher_id bigint,
+    campaign_id bigint,
+    creative_id bigint,
+    property_id bigint,
+    ip_address character varying,
+    user_agent text,
+    country_code character varying,
+    postal_code character varying,
+    latitude numeric,
+    longitude numeric,
+    displayed_at timestamp without time zone,
+    displayed_at_date date,
+    clicked_at timestamp without time zone,
+    clicked_at_date date,
+    fallback_campaign boolean DEFAULT false NOT NULL,
+    metadata jsonb DEFAULT '"{}"'::jsonb NOT NULL,
+    conversion_referrer text,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: pixel_conversions_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.pixel_conversions_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: pixel_conversions_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.pixel_conversions_id_seq OWNED BY public.pixel_conversions.id;
+
+
+--
+-- Name: pixels; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.pixels (
+    id uuid DEFAULT public.gen_random_uuid() NOT NULL,
+    name character varying NOT NULL,
+    description text,
+    organization_id bigint NOT NULL,
+    user_id bigint NOT NULL,
+    value_cents integer DEFAULT 0 NOT NULL,
+    value_currency character varying DEFAULT 'USD'::character varying NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
 -- Name: properties; Type: TABLE; Schema: public; Owner: -
 --
 
 CREATE TABLE public.properties (
     id bigint NOT NULL,
     user_id bigint NOT NULL,
-    property_type character varying NOT NULL,
+    property_type character varying DEFAULT 'website'::character varying NOT NULL,
     status character varying NOT NULL,
     name character varying NOT NULL,
     description text,
@@ -689,7 +1048,6 @@ CREATE TABLE public.properties (
     ad_theme character varying,
     language character varying NOT NULL,
     keywords character varying[] DEFAULT '{}'::character varying[] NOT NULL,
-    prohibited_advertiser_ids bigint[] DEFAULT '{}'::bigint[] NOT NULL,
     prohibit_fallback_campaigns boolean DEFAULT false NOT NULL,
     created_at timestamp without time zone NOT NULL,
     updated_at timestamp without time zone NOT NULL,
@@ -700,7 +1058,9 @@ CREATE TABLE public.properties (
     fallback_ad_template character varying,
     fallback_ad_theme character varying,
     responsive_behavior character varying DEFAULT 'none'::character varying NOT NULL,
-    audience character varying
+    audience_id bigint,
+    deleted_at timestamp without time zone,
+    prohibited_organization_ids bigint[] DEFAULT '{}'::bigint[] NOT NULL
 );
 
 
@@ -762,36 +1122,36 @@ ALTER SEQUENCE public.property_advertisers_id_seq OWNED BY public.property_adver
 CREATE TABLE public.property_traffic_estimates (
     id bigint NOT NULL,
     property_id bigint NOT NULL,
-    site_worth_cents integer DEFAULT 0 NOT NULL,
+    site_worth_cents bigint DEFAULT 0 NOT NULL,
     site_worth_currency character varying DEFAULT 'USD'::character varying NOT NULL,
-    visitors_daily integer DEFAULT 0,
-    visitors_monthly integer DEFAULT 0,
-    visitors_yearly integer DEFAULT 0,
-    pageviews_daily integer DEFAULT 0,
-    pageviews_monthly integer DEFAULT 0,
-    pageviews_yearly integer DEFAULT 0,
-    revenue_daily_cents integer DEFAULT 0 NOT NULL,
+    visitors_daily bigint DEFAULT 0,
+    visitors_monthly bigint DEFAULT 0,
+    visitors_yearly bigint DEFAULT 0,
+    pageviews_daily bigint DEFAULT 0,
+    pageviews_monthly bigint DEFAULT 0,
+    pageviews_yearly bigint DEFAULT 0,
+    revenue_daily_cents bigint DEFAULT 0 NOT NULL,
     revenue_daily_currency character varying DEFAULT 'USD'::character varying NOT NULL,
-    revenue_monthly_cents integer DEFAULT 0 NOT NULL,
+    revenue_monthly_cents bigint DEFAULT 0 NOT NULL,
     revenue_monthly_currency character varying DEFAULT 'USD'::character varying NOT NULL,
-    revenue_yearly_cents integer DEFAULT 0 NOT NULL,
+    revenue_yearly_cents bigint DEFAULT 0 NOT NULL,
     revenue_yearly_currency character varying DEFAULT 'USD'::character varying NOT NULL,
-    alexa_rank_3_months integer DEFAULT 0,
-    alexa_rank_1_month integer DEFAULT 0,
-    alexa_rank_7_days integer DEFAULT 0,
-    alexa_rank_1_day integer DEFAULT 0,
-    alexa_rank_delta_3_months integer DEFAULT 0,
-    alexa_rank_delta_1_month integer DEFAULT 0,
-    alexa_rank_delta_7_days integer DEFAULT 0,
-    alexa_rank_delta_1_day integer DEFAULT 0,
-    alexa_reach_3_months integer DEFAULT 0,
-    alexa_reach_1_month integer DEFAULT 0,
-    alexa_reach_7_days integer DEFAULT 0,
-    alexa_reach_1_day integer DEFAULT 0,
-    alexa_reach_delta_3_months integer DEFAULT 0,
-    alexa_reach_delta_1_month integer DEFAULT 0,
-    alexa_reach_delta_7_days integer DEFAULT 0,
-    alexa_reach_delta_1_day integer DEFAULT 0,
+    alexa_rank_3_months bigint DEFAULT 0,
+    alexa_rank_1_month bigint DEFAULT 0,
+    alexa_rank_7_days bigint DEFAULT 0,
+    alexa_rank_1_day bigint DEFAULT 0,
+    alexa_rank_delta_3_months bigint DEFAULT 0,
+    alexa_rank_delta_1_month bigint DEFAULT 0,
+    alexa_rank_delta_7_days bigint DEFAULT 0,
+    alexa_rank_delta_1_day bigint DEFAULT 0,
+    alexa_reach_3_months bigint DEFAULT 0,
+    alexa_reach_1_month bigint DEFAULT 0,
+    alexa_reach_7_days bigint DEFAULT 0,
+    alexa_reach_1_day bigint DEFAULT 0,
+    alexa_reach_delta_3_months bigint DEFAULT 0,
+    alexa_reach_delta_1_month bigint DEFAULT 0,
+    alexa_reach_delta_7_days bigint DEFAULT 0,
+    alexa_reach_delta_1_day bigint DEFAULT 0,
     alexa_pageviews_3_months double precision,
     alexa_pageviews_1_month double precision,
     alexa_pageviews_7_days double precision,
@@ -868,64 +1228,242 @@ ALTER SEQUENCE public.publisher_invoices_id_seq OWNED BY public.publisher_invoic
 
 CREATE VIEW public.regions AS
  SELECT 1 AS id,
-    'United States and Candada'::text AS name,
+    'Africa'::text AS name,
     'USD'::text AS blockchain_ecpm_currency,
-    1000 AS blockchain_ecpm_cents,
+    75 AS blockchain_ecpm_cents,
     'USD'::text AS css_and_design_ecpm_currency,
-    450 AS css_and_design_ecpm_cents,
+    38 AS css_and_design_ecpm_cents,
     'USD'::text AS dev_ops_ecpm_currency,
-    650 AS dev_ops_ecpm_cents,
+    53 AS dev_ops_ecpm_cents,
     'USD'::text AS game_development_ecpm_currency,
-    425 AS game_development_ecpm_cents,
+    38 AS game_development_ecpm_cents,
     'USD'::text AS javascript_and_frontend_ecpm_currency,
-    625 AS javascript_and_frontend_ecpm_cents,
+    68 AS javascript_and_frontend_ecpm_cents,
     'USD'::text AS miscellaneous_ecpm_currency,
-    425 AS miscellaneous_ecpm_cents,
+    23 AS miscellaneous_ecpm_cents,
     'USD'::text AS mobile_development_ecpm_currency,
-    450 AS mobile_development_ecpm_cents,
+    38 AS mobile_development_ecpm_cents,
     'USD'::text AS web_development_and_backend_ecpm_currency,
-    500 AS web_development_and_backend_ecpm_cents,
-    '{US,CA}'::text[] AS country_codes
+    45 AS web_development_and_backend_ecpm_cents,
+    '{AO,BF,BI,BJ,BW,CD,CF,CG,CI,CM,CV,DJ,DZ,EG,EH,ER,ET,GA,GH,GM,GN,GQ,GW,IO,KE,KM,LR,LS,LY,MA,MG,ML,MR,MU,MW,MZ,NA,NE,NG,RE,RW,SC,SD,SH,SL,SN,SO,SS,ST,SZ,TD,TG,TN,TZ,UG,YT,ZA,ZM,ZW}'::text[] AS country_codes
 UNION ALL
  SELECT 2 AS id,
-    'Europe, Australia and New Zealand'::text AS name,
+    'Americas - Central and Southern'::text AS name,
     'USD'::text AS blockchain_ecpm_currency,
-    900 AS blockchain_ecpm_cents,
+    150 AS blockchain_ecpm_cents,
     'USD'::text AS css_and_design_ecpm_currency,
-    350 AS css_and_design_ecpm_cents,
+    75 AS css_and_design_ecpm_cents,
     'USD'::text AS dev_ops_ecpm_currency,
-    550 AS dev_ops_ecpm_cents,
+    105 AS dev_ops_ecpm_cents,
     'USD'::text AS game_development_ecpm_currency,
-    325 AS game_development_ecpm_cents,
+    75 AS game_development_ecpm_cents,
     'USD'::text AS javascript_and_frontend_ecpm_currency,
-    525 AS javascript_and_frontend_ecpm_cents,
+    135 AS javascript_and_frontend_ecpm_cents,
     'USD'::text AS miscellaneous_ecpm_currency,
-    325 AS miscellaneous_ecpm_cents,
+    45 AS miscellaneous_ecpm_cents,
     'USD'::text AS mobile_development_ecpm_currency,
-    350 AS mobile_development_ecpm_cents,
+    75 AS mobile_development_ecpm_cents,
     'USD'::text AS web_development_and_backend_ecpm_currency,
-    400 AS web_development_and_backend_ecpm_cents,
-    '{AD,AL,AT,AU,AX,BA,BE,BG,BY,CC,CH,CX,CZ,DE,DK,EE,ES,FI,FO,FR,GB,GG,GI,GR,HR,HU,IE,IM,IS,IT,JE,LI,LT,LU,LV,MC,MD,ME,MK,MT,NF,NL,NO,NZ,PL,PT,RO,RS,SE,SI,SJ,SK,SM,UA,VA}'::text[] AS country_codes
+    90 AS web_development_and_backend_ecpm_cents,
+    '{AR,BO,BR,BZ,CL,CO,CR,EC,FK,GF,GS,GT,GY,HN,MX,NI,PA,PE,PY,SR,SV,UY,VE}'::text[] AS country_codes
 UNION ALL
  SELECT 3 AS id,
+    'Americas - Northern'::text AS name,
+    'USD'::text AS blockchain_ecpm_currency,
+    750 AS blockchain_ecpm_cents,
+    'USD'::text AS css_and_design_ecpm_currency,
+    375 AS css_and_design_ecpm_cents,
+    'USD'::text AS dev_ops_ecpm_currency,
+    525 AS dev_ops_ecpm_cents,
+    'USD'::text AS game_development_ecpm_currency,
+    375 AS game_development_ecpm_cents,
+    'USD'::text AS javascript_and_frontend_ecpm_currency,
+    675 AS javascript_and_frontend_ecpm_cents,
+    'USD'::text AS miscellaneous_ecpm_currency,
+    225 AS miscellaneous_ecpm_cents,
+    'USD'::text AS mobile_development_ecpm_currency,
+    375 AS mobile_development_ecpm_cents,
+    'USD'::text AS web_development_and_backend_ecpm_currency,
+    450 AS web_development_and_backend_ecpm_cents,
+    '{US,CA}'::text[] AS country_codes
+UNION ALL
+ SELECT 4 AS id,
+    'Asia - Central and South-Eastern'::text AS name,
+    'USD'::text AS blockchain_ecpm_currency,
+    225 AS blockchain_ecpm_cents,
+    'USD'::text AS css_and_design_ecpm_currency,
+    113 AS css_and_design_ecpm_cents,
+    'USD'::text AS dev_ops_ecpm_currency,
+    158 AS dev_ops_ecpm_cents,
+    'USD'::text AS game_development_ecpm_currency,
+    113 AS game_development_ecpm_cents,
+    'USD'::text AS javascript_and_frontend_ecpm_currency,
+    203 AS javascript_and_frontend_ecpm_cents,
+    'USD'::text AS miscellaneous_ecpm_currency,
+    68 AS miscellaneous_ecpm_cents,
+    'USD'::text AS mobile_development_ecpm_currency,
+    113 AS mobile_development_ecpm_cents,
+    'USD'::text AS web_development_and_backend_ecpm_currency,
+    135 AS web_development_and_backend_ecpm_cents,
+    '{BN,ID,KG,KH,KZ,LA,MM,MY,PH,SG,TH,TJ,TL,TM,UZ,VN}'::text[] AS country_codes
+UNION ALL
+ SELECT 5 AS id,
+    'Asia - Eastern'::text AS name,
+    'USD'::text AS blockchain_ecpm_currency,
+    225 AS blockchain_ecpm_cents,
+    'USD'::text AS css_and_design_ecpm_currency,
+    113 AS css_and_design_ecpm_cents,
+    'USD'::text AS dev_ops_ecpm_currency,
+    158 AS dev_ops_ecpm_cents,
+    'USD'::text AS game_development_ecpm_currency,
+    113 AS game_development_ecpm_cents,
+    'USD'::text AS javascript_and_frontend_ecpm_currency,
+    203 AS javascript_and_frontend_ecpm_cents,
+    'USD'::text AS miscellaneous_ecpm_currency,
+    68 AS miscellaneous_ecpm_cents,
+    'USD'::text AS mobile_development_ecpm_currency,
+    113 AS mobile_development_ecpm_cents,
+    'USD'::text AS web_development_and_backend_ecpm_currency,
+    135 AS web_development_and_backend_ecpm_cents,
+    '{CN,HK,JP,KP,KR,MN,MO,TW}'::text[] AS country_codes
+UNION ALL
+ SELECT 6 AS id,
+    'Asia - Southern and Western'::text AS name,
+    'USD'::text AS blockchain_ecpm_currency,
+    225 AS blockchain_ecpm_cents,
+    'USD'::text AS css_and_design_ecpm_currency,
+    113 AS css_and_design_ecpm_cents,
+    'USD'::text AS dev_ops_ecpm_currency,
+    158 AS dev_ops_ecpm_cents,
+    'USD'::text AS game_development_ecpm_currency,
+    113 AS game_development_ecpm_cents,
+    'USD'::text AS javascript_and_frontend_ecpm_currency,
+    203 AS javascript_and_frontend_ecpm_cents,
+    'USD'::text AS miscellaneous_ecpm_currency,
+    68 AS miscellaneous_ecpm_cents,
+    'USD'::text AS mobile_development_ecpm_currency,
+    113 AS mobile_development_ecpm_cents,
+    'USD'::text AS web_development_and_backend_ecpm_currency,
+    135 AS web_development_and_backend_ecpm_cents,
+    '{AE,AF,AM,AZ,BD,BH,BT,CY,GE,IL,IN,IQ,IR,JO,KW,LB,LK,MV,NP,OM,PK,PS,QA,SA,SY,TR,YE}'::text[] AS country_codes
+UNION ALL
+ SELECT 7 AS id,
+    'Australia and New Zealand'::text AS name,
+    'USD'::text AS blockchain_ecpm_currency,
+    750 AS blockchain_ecpm_cents,
+    'USD'::text AS css_and_design_ecpm_currency,
+    375 AS css_and_design_ecpm_cents,
+    'USD'::text AS dev_ops_ecpm_currency,
+    525 AS dev_ops_ecpm_cents,
+    'USD'::text AS game_development_ecpm_currency,
+    375 AS game_development_ecpm_cents,
+    'USD'::text AS javascript_and_frontend_ecpm_currency,
+    675 AS javascript_and_frontend_ecpm_cents,
+    'USD'::text AS miscellaneous_ecpm_currency,
+    225 AS miscellaneous_ecpm_cents,
+    'USD'::text AS mobile_development_ecpm_currency,
+    375 AS mobile_development_ecpm_cents,
+    'USD'::text AS web_development_and_backend_ecpm_currency,
+    450 AS web_development_and_backend_ecpm_cents,
+    '{AU,CC,CX,NF,NZ}'::text[] AS country_codes
+UNION ALL
+ SELECT 8 AS id,
+    'Europe'::text AS name,
+    'USD'::text AS blockchain_ecpm_currency,
+    675 AS blockchain_ecpm_cents,
+    'USD'::text AS css_and_design_ecpm_currency,
+    338 AS css_and_design_ecpm_cents,
+    'USD'::text AS dev_ops_ecpm_currency,
+    473 AS dev_ops_ecpm_cents,
+    'USD'::text AS game_development_ecpm_currency,
+    338 AS game_development_ecpm_cents,
+    'USD'::text AS javascript_and_frontend_ecpm_currency,
+    608 AS javascript_and_frontend_ecpm_cents,
+    'USD'::text AS miscellaneous_ecpm_currency,
+    203 AS miscellaneous_ecpm_cents,
+    'USD'::text AS mobile_development_ecpm_currency,
+    338 AS mobile_development_ecpm_cents,
+    'USD'::text AS web_development_and_backend_ecpm_currency,
+    405 AS web_development_and_backend_ecpm_cents,
+    '{AD,AL,AT,AX,BA,BE,CH,DE,DK,EE,ES,FI,FO,FR,GB,GG,GI,GR,HR,IE,IM,IS,IT,JE,LI,LT,LU,LV,MC,ME,MK,MT,NL,NO,PT,RS,SE,SI,SJ,SM,VA}'::text[] AS country_codes
+UNION ALL
+ SELECT 9 AS id,
+    'Europe - Eastern'::text AS name,
+    'USD'::text AS blockchain_ecpm_currency,
+    450 AS blockchain_ecpm_cents,
+    'USD'::text AS css_and_design_ecpm_currency,
+    225 AS css_and_design_ecpm_cents,
+    'USD'::text AS dev_ops_ecpm_currency,
+    315 AS dev_ops_ecpm_cents,
+    'USD'::text AS game_development_ecpm_currency,
+    225 AS game_development_ecpm_cents,
+    'USD'::text AS javascript_and_frontend_ecpm_currency,
+    405 AS javascript_and_frontend_ecpm_cents,
+    'USD'::text AS miscellaneous_ecpm_currency,
+    135 AS miscellaneous_ecpm_cents,
+    'USD'::text AS mobile_development_ecpm_currency,
+    225 AS mobile_development_ecpm_cents,
+    'USD'::text AS web_development_and_backend_ecpm_currency,
+    270 AS web_development_and_backend_ecpm_cents,
+    '{BG,BY,CZ,HU,MD,PL,RO,RU,SK,UA}'::text[] AS country_codes
+UNION ALL
+ SELECT 10 AS id,
     'Other'::text AS name,
     'USD'::text AS blockchain_ecpm_currency,
-    600 AS blockchain_ecpm_cents,
+    75 AS blockchain_ecpm_cents,
     'USD'::text AS css_and_design_ecpm_currency,
-    50 AS css_and_design_ecpm_cents,
+    38 AS css_and_design_ecpm_cents,
     'USD'::text AS dev_ops_ecpm_currency,
-    250 AS dev_ops_ecpm_cents,
+    53 AS dev_ops_ecpm_cents,
     'USD'::text AS game_development_ecpm_currency,
-    25 AS game_development_ecpm_cents,
+    38 AS game_development_ecpm_cents,
     'USD'::text AS javascript_and_frontend_ecpm_currency,
-    225 AS javascript_and_frontend_ecpm_cents,
+    68 AS javascript_and_frontend_ecpm_cents,
     'USD'::text AS miscellaneous_ecpm_currency,
-    25 AS miscellaneous_ecpm_cents,
+    23 AS miscellaneous_ecpm_cents,
     'USD'::text AS mobile_development_ecpm_currency,
-    50 AS mobile_development_ecpm_cents,
+    38 AS mobile_development_ecpm_cents,
     'USD'::text AS web_development_and_backend_ecpm_currency,
-    100 AS web_development_and_backend_ecpm_cents,
-    '{AE,AF,AG,AI,AM,AO,AR,AS,AW,AZ,BB,BD,BF,BH,BI,BJ,BL,BM,BN,BO,BQ,BR,BS,BT,BW,BZ,CD,CF,CG,CI,CK,CL,CM,CN,CO,CR,CU,CV,CW,CY,DJ,DM,DO,DZ,EC,EG,EH,ER,ET,FJ,FK,FM,GA,GD,GE,GF,GH,GL,GM,GN,GP,GQ,GS,GT,GU,GW,GY,HK,HN,HT,ID,IL,IN,IO,IQ,IR,JM,JO,JP,KE,KG,KH,KI,KM,KN,KP,KR,KW,KY,KZ,LA,LB,LC,LK,LR,LS,LY,MA,MF,MG,MH,ML,MM,MN,MO,MP,MQ,MR,MS,MU,MV,MW,MX,MY,MZ,NA,NC,NE,NG,NI,NP,NR,NU,OM,PA,PE,PF,PG,PH,PK,PM,PN,PR,PS,PW,PY,QA,RE,RU,RW,SA,SB,SC,SD,SG,SH,SL,SN,SO,SR,SS,ST,SV,SX,SY,SZ,TC,TD,TG,TH,TJ,TK,TL,TM,TN,TO,TR,TT,TV,TW,TZ,UG,UM,UY,UZ,VC,VE,VG,VI,VN,VU,WF,WS,YE,YT,ZA,ZM,ZW}'::text[] AS country_codes;
+    45 AS web_development_and_backend_ecpm_cents,
+    '{AG,AI,AS,AW,BB,BL,BM,BQ,BS,CK,CU,CW,DM,DO,FJ,FM,GD,GL,GP,GU,HT,JM,KI,KN,KY,LC,MF,MH,MP,MQ,MS,NC,NR,NU,PF,PG,PM,PN,PR,PW,SB,SX,TC,TK,TO,TT,TV,UM,VC,VG,VI,VU,WF,WS}'::text[] AS country_codes;
+
+
+--
+-- Name: scheduled_organization_reports; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.scheduled_organization_reports (
+    id bigint NOT NULL,
+    organization_id bigint NOT NULL,
+    subject text NOT NULL,
+    start_date date NOT NULL,
+    end_date date NOT NULL,
+    frequency character varying NOT NULL,
+    dataset character varying NOT NULL,
+    campaign_ids bigint[] DEFAULT '{}'::bigint[] NOT NULL,
+    recipients character varying[] DEFAULT '{}'::character varying[] NOT NULL,
+    created_at timestamp(6) without time zone NOT NULL,
+    updated_at timestamp(6) without time zone NOT NULL
+);
+
+
+--
+-- Name: scheduled_organization_reports_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.scheduled_organization_reports_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: scheduled_organization_reports_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.scheduled_organization_reports_id_seq OWNED BY public.scheduled_organization_reports.id;
 
 
 --
@@ -1001,7 +1539,8 @@ CREATE TABLE public.users (
     utm_campaign character varying,
     utm_term character varying,
     utm_content character varying,
-    status character varying DEFAULT 'active'::character varying
+    status character varying DEFAULT 'active'::character varying,
+    record_inbound_emails boolean DEFAULT false
 );
 
 
@@ -1060,6 +1599,20 @@ ALTER SEQUENCE public.versions_id_seq OWNED BY public.versions.id;
 
 
 --
+-- Name: action_mailbox_inbound_emails id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.action_mailbox_inbound_emails ALTER COLUMN id SET DEFAULT nextval('public.action_mailbox_inbound_emails_id_seq'::regclass);
+
+
+--
+-- Name: action_text_rich_texts id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.action_text_rich_texts ALTER COLUMN id SET DEFAULT nextval('public.action_text_rich_texts_id_seq'::regclass);
+
+
+--
 -- Name: active_storage_attachments id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1071,6 +1624,13 @@ ALTER TABLE ONLY public.active_storage_attachments ALTER COLUMN id SET DEFAULT n
 --
 
 ALTER TABLE ONLY public.active_storage_blobs ALTER COLUMN id SET DEFAULT nextval('public.active_storage_blobs_id_seq'::regclass);
+
+
+--
+-- Name: campaign_bundles id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.campaign_bundles ALTER COLUMN id SET DEFAULT nextval('public.campaign_bundles_id_seq'::regclass);
 
 
 --
@@ -1116,6 +1676,20 @@ ALTER TABLE ONLY public.daily_summaries ALTER COLUMN id SET DEFAULT nextval('pub
 
 
 --
+-- Name: email_users id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_users ALTER COLUMN id SET DEFAULT nextval('public.email_users_id_seq'::regclass);
+
+
+--
+-- Name: emails id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.emails ALTER COLUMN id SET DEFAULT nextval('public.emails_id_seq'::regclass);
+
+
+--
 -- Name: events id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1144,10 +1718,24 @@ ALTER TABLE ONLY public.organization_transactions ALTER COLUMN id SET DEFAULT ne
 
 
 --
+-- Name: organization_users id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organization_users ALTER COLUMN id SET DEFAULT nextval('public.organization_users_id_seq'::regclass);
+
+
+--
 -- Name: organizations id; Type: DEFAULT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.organizations ALTER COLUMN id SET DEFAULT nextval('public.organizations_id_seq'::regclass);
+
+
+--
+-- Name: pixel_conversions id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pixel_conversions ALTER COLUMN id SET DEFAULT nextval('public.pixel_conversions_id_seq'::regclass);
 
 
 --
@@ -1179,6 +1767,13 @@ ALTER TABLE ONLY public.publisher_invoices ALTER COLUMN id SET DEFAULT nextval('
 
 
 --
+-- Name: scheduled_organization_reports id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.scheduled_organization_reports ALTER COLUMN id SET DEFAULT nextval('public.scheduled_organization_reports_id_seq'::regclass);
+
+
+--
 -- Name: users id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -1190,6 +1785,22 @@ ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_
 --
 
 ALTER TABLE ONLY public.versions ALTER COLUMN id SET DEFAULT nextval('public.versions_id_seq'::regclass);
+
+
+--
+-- Name: action_mailbox_inbound_emails action_mailbox_inbound_emails_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.action_mailbox_inbound_emails
+    ADD CONSTRAINT action_mailbox_inbound_emails_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: action_text_rich_texts action_text_rich_texts_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.action_text_rich_texts
+    ADD CONSTRAINT action_text_rich_texts_pkey PRIMARY KEY (id);
 
 
 --
@@ -1214,6 +1825,14 @@ ALTER TABLE ONLY public.active_storage_blobs
 
 ALTER TABLE ONLY public.ar_internal_metadata
     ADD CONSTRAINT ar_internal_metadata_pkey PRIMARY KEY (key);
+
+
+--
+-- Name: campaign_bundles campaign_bundles_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.campaign_bundles
+    ADD CONSTRAINT campaign_bundles_pkey PRIMARY KEY (id);
 
 
 --
@@ -1265,6 +1884,22 @@ ALTER TABLE ONLY public.daily_summaries
 
 
 --
+-- Name: email_users email_users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.email_users
+    ADD CONSTRAINT email_users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: emails emails_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.emails
+    ADD CONSTRAINT emails_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: events events_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1297,11 +1932,35 @@ ALTER TABLE ONLY public.organization_transactions
 
 
 --
+-- Name: organization_users organization_users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.organization_users
+    ADD CONSTRAINT organization_users_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: organizations organizations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
 ALTER TABLE ONLY public.organizations
     ADD CONSTRAINT organizations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pixel_conversions pixel_conversions_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pixel_conversions
+    ADD CONSTRAINT pixel_conversions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: pixels pixels_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pixels
+    ADD CONSTRAINT pixels_pkey PRIMARY KEY (id);
 
 
 --
@@ -1337,6 +1996,14 @@ ALTER TABLE ONLY public.publisher_invoices
 
 
 --
+-- Name: scheduled_organization_reports scheduled_organization_reports_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.scheduled_organization_reports
+    ADD CONSTRAINT scheduled_organization_reports_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -1358,6 +2025,20 @@ ALTER TABLE ONLY public.users
 
 ALTER TABLE ONLY public.versions
     ADD CONSTRAINT versions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: email_anc_desc_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX email_anc_desc_idx ON public.email_hierarchies USING btree (ancestor_id, descendant_id, generations);
+
+
+--
+-- Name: email_desc_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX email_desc_idx ON public.email_hierarchies USING btree (descendant_id);
 
 
 --
@@ -1571,6 +2252,20 @@ CREATE INDEX impressions_default_uplift_idx ON public.impressions_default USING 
 
 
 --
+-- Name: index_action_mailbox_inbound_emails_uniqueness; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_action_mailbox_inbound_emails_uniqueness ON public.action_mailbox_inbound_emails USING btree (message_id, message_checksum);
+
+
+--
+-- Name: index_action_text_rich_texts_uniqueness; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_action_text_rich_texts_uniqueness ON public.action_text_rich_texts USING btree (record_type, record_id, name);
+
+
+--
 -- Name: index_active_storage_attachments_on_blob_id; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -1613,10 +2308,52 @@ CREATE UNIQUE INDEX index_active_storage_blobs_on_key ON public.active_storage_b
 
 
 --
+-- Name: index_campaign_bundles_on_end_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_campaign_bundles_on_end_date ON public.campaign_bundles USING btree (end_date);
+
+
+--
+-- Name: index_campaign_bundles_on_name; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_campaign_bundles_on_name ON public.campaign_bundles USING btree (lower((name)::text));
+
+
+--
+-- Name: index_campaign_bundles_on_region_ids; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_campaign_bundles_on_region_ids ON public.campaign_bundles USING gin (region_ids);
+
+
+--
+-- Name: index_campaign_bundles_on_start_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_campaign_bundles_on_start_date ON public.campaign_bundles USING btree (start_date);
+
+
+--
 -- Name: index_campaigns_on_assigned_property_ids; Type: INDEX; Schema: public; Owner: -
 --
 
 CREATE INDEX index_campaigns_on_assigned_property_ids ON public.campaigns USING gin (assigned_property_ids);
+
+
+--
+-- Name: index_campaigns_on_audience_ids; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_campaigns_on_audience_ids ON public.campaigns USING gin (audience_ids);
+
+
+--
+-- Name: index_campaigns_on_campaign_bundle_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_campaigns_on_campaign_bundle_id ON public.campaigns USING btree (campaign_bundle_id);
 
 
 --
@@ -1708,6 +2445,13 @@ CREATE INDEX index_campaigns_on_prohibited_property_ids ON public.campaigns USIN
 --
 
 CREATE INDEX index_campaigns_on_province_codes ON public.campaigns USING gin (province_codes);
+
+
+--
+-- Name: index_campaigns_on_region_ids; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_campaigns_on_region_ids ON public.campaigns USING gin (region_ids);
 
 
 --
@@ -1827,6 +2571,48 @@ CREATE UNIQUE INDEX index_daily_summaries_uniqueness ON public.daily_summaries U
 --
 
 CREATE UNIQUE INDEX index_daily_summaries_unscoped_uniqueness ON public.daily_summaries USING btree (impressionable_type, impressionable_id, displayed_at_date) WHERE ((scoped_by_type IS NULL) AND (scoped_by_id IS NULL));
+
+
+--
+-- Name: index_email_users_on_email_id_and_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_email_users_on_email_id_and_user_id ON public.email_users USING btree (email_id, user_id);
+
+
+--
+-- Name: index_emails_on_delivered_at_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_emails_on_delivered_at_date ON public.emails USING btree (delivered_at_date);
+
+
+--
+-- Name: index_emails_on_delivered_at_hour; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_emails_on_delivered_at_hour ON public.emails USING btree (date_trunc('hour'::text, delivered_at));
+
+
+--
+-- Name: index_emails_on_parent_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_emails_on_parent_id ON public.emails USING btree (parent_id);
+
+
+--
+-- Name: index_emails_on_recipients; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_emails_on_recipients ON public.emails USING gin (recipients);
+
+
+--
+-- Name: index_emails_on_sender; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_emails_on_sender ON public.emails USING btree (sender);
 
 
 --
@@ -2061,6 +2847,132 @@ CREATE INDEX index_organization_transactions_on_transaction_type ON public.organ
 
 
 --
+-- Name: index_organization_users_on_organization_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_organization_users_on_organization_id ON public.organization_users USING btree (organization_id);
+
+
+--
+-- Name: index_organization_users_on_uniqueness; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_organization_users_on_uniqueness ON public.organization_users USING btree (organization_id, user_id, role);
+
+
+--
+-- Name: index_organization_users_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_organization_users_on_user_id ON public.organization_users USING btree (user_id);
+
+
+--
+-- Name: index_organizations_on_account_manager_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_organizations_on_account_manager_user_id ON public.organizations USING btree (account_manager_user_id);
+
+
+--
+-- Name: index_organizations_on_creative_approval_needed; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_organizations_on_creative_approval_needed ON public.organizations USING btree (creative_approval_needed);
+
+
+--
+-- Name: index_pixel_conversions_on_advertiser_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_pixel_conversions_on_advertiser_id ON public.pixel_conversions USING btree (advertiser_id);
+
+
+--
+-- Name: index_pixel_conversions_on_campaign_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_pixel_conversions_on_campaign_id ON public.pixel_conversions USING btree (campaign_id);
+
+
+--
+-- Name: index_pixel_conversions_on_clicked_at_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_pixel_conversions_on_clicked_at_date ON public.pixel_conversions USING btree (clicked_at_date);
+
+
+--
+-- Name: index_pixel_conversions_on_country_code; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_pixel_conversions_on_country_code ON public.pixel_conversions USING btree (country_code);
+
+
+--
+-- Name: index_pixel_conversions_on_creative_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_pixel_conversions_on_creative_id ON public.pixel_conversions USING btree (creative_id);
+
+
+--
+-- Name: index_pixel_conversions_on_displayed_at_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_pixel_conversions_on_displayed_at_date ON public.pixel_conversions USING btree (displayed_at_date);
+
+
+--
+-- Name: index_pixel_conversions_on_impression_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_pixel_conversions_on_impression_id ON public.pixel_conversions USING btree (impression_id);
+
+
+--
+-- Name: index_pixel_conversions_on_metadata; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_pixel_conversions_on_metadata ON public.pixel_conversions USING gin (metadata);
+
+
+--
+-- Name: index_pixel_conversions_on_pixel_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_pixel_conversions_on_pixel_id ON public.pixel_conversions USING btree (pixel_id);
+
+
+--
+-- Name: index_pixel_conversions_on_pixel_id_and_impression_id_param; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE UNIQUE INDEX index_pixel_conversions_on_pixel_id_and_impression_id_param ON public.pixel_conversions USING btree (pixel_id, impression_id_param);
+
+
+--
+-- Name: index_pixel_conversions_on_property_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_pixel_conversions_on_property_id ON public.pixel_conversions USING btree (property_id);
+
+
+--
+-- Name: index_pixels_on_organization_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_pixels_on_organization_id ON public.pixels USING btree (organization_id);
+
+
+--
+-- Name: index_pixels_on_user_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_pixels_on_user_id ON public.pixels USING btree (user_id);
+
+
+--
 -- Name: index_properties_on_assigned_fallback_campaign_ids; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -2068,10 +2980,10 @@ CREATE INDEX index_properties_on_assigned_fallback_campaign_ids ON public.proper
 
 
 --
--- Name: index_properties_on_audience; Type: INDEX; Schema: public; Owner: -
+-- Name: index_properties_on_audience_id; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_properties_on_audience ON public.properties USING btree (audience);
+CREATE INDEX index_properties_on_audience_id ON public.properties USING btree (audience_id);
 
 
 --
@@ -2089,10 +3001,10 @@ CREATE INDEX index_properties_on_name ON public.properties USING btree (lower((n
 
 
 --
--- Name: index_properties_on_prohibited_advertiser_ids; Type: INDEX; Schema: public; Owner: -
+-- Name: index_properties_on_prohibited_organization_ids; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX index_properties_on_prohibited_advertiser_ids ON public.properties USING gin (prohibited_advertiser_ids);
+CREATE INDEX index_properties_on_prohibited_organization_ids ON public.properties USING gin (prohibited_organization_ids);
 
 
 --
@@ -2170,6 +3082,13 @@ CREATE INDEX index_publisher_invoices_on_start_date ON public.publisher_invoices
 --
 
 CREATE INDEX index_publisher_invoices_on_user_id ON public.publisher_invoices USING btree (user_id);
+
+
+--
+-- Name: index_scheduled_organization_reports_on_organization_id; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX index_scheduled_organization_reports_on_organization_id ON public.scheduled_organization_reports USING btree (organization_id);
 
 
 --
@@ -2376,6 +3295,22 @@ ALTER INDEX public.index_impressions_on_uplift ATTACH PARTITION public.impressio
 
 
 --
+-- Name: pixels fk_rails_6b2dcde3e7; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pixels
+    ADD CONSTRAINT fk_rails_6b2dcde3e7 FOREIGN KEY (organization_id) REFERENCES public.organizations(id);
+
+
+--
+-- Name: pixels fk_rails_d13d92d4dc; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.pixels
+    ADD CONSTRAINT fk_rails_d13d92d4dc FOREIGN KEY (user_id) REFERENCES public.users(id);
+
+
+--
 -- PostgreSQL database dump complete
 --
 
@@ -2451,6 +3386,44 @@ INSERT INTO "schema_migrations" (version) VALUES
 ('20190916195048'),
 ('20190924203350'),
 ('20191008153346'),
-('20191009151545');
+('20191009151545'),
+('20191010203902'),
+('20191010214024'),
+('20191014171135'),
+('20191014205953'),
+('20191105141709'),
+('20191105190354'),
+('20191201235552'),
+('20191218185622'),
+('20200116165511'),
+('20200116184119'),
+('20200121171555'),
+('20200123175239'),
+('20200207162017'),
+('20200213234149'),
+('20200220160136'),
+('20200221220825'),
+('20200303224134'),
+('20200325201726'),
+('20200406223804'),
+('20200416182239'),
+('20200421152748'),
+('20200422185634'),
+('20200422190916'),
+('20200422195410'),
+('20200504175333'),
+('20200504194917'),
+('20200505193112'),
+('20200505203735'),
+('20200507164638'),
+('20200511174710'),
+('20200513193432'),
+('20200513210427'),
+('20200519191749'),
+('20200521213149'),
+('20200521230331'),
+('20200527164824'),
+('20200527175633'),
+('20200528141603');
 
 

@@ -13,7 +13,7 @@ class AdvertisementClicksController < ApplicationController
       utm_medium: "display",
       utm_campaign: @campaign.id,
       utm_impression: @impression_id,
-      utm_referrer: request.referer,
+      utm_referrer: request.referer
     )
     uri.query = query.merge(parsed_query).to_query
     redirect_to uri.to_s
@@ -21,24 +21,15 @@ class AdvertisementClicksController < ApplicationController
 
   private
 
-  def sponsor?
-    request.path.include? "/visit-sponsor"
-  end
-
   def set_variables
     @property = Property.select(:id, :name, :url).find_by(id: params[:property_id])
+    @impression_id = params[:impression_id]
+    @campaign = Campaign.select(:id, :name, :url).find_by(id: params[:campaign_id])
+    @creative = Creative.select(:id, :name).find_by(id: params[:creative_id])
+    @template = params[:template]
+    @theme = params[:theme]
 
-    if sponsor?
-      @campaign = @property.current_sponsor_campaign
-    else
-      @impression_id = params[:impression_id]
-      @campaign = Campaign.select(:id, :name, :url).find_by(id: params[:campaign_id])
-      @creative = Creative.select(:id, :name).find_by(id: params[:creative_id])
-      @template = params[:template]
-      @theme = params[:theme]
-    end
-
-    redirect_to advertisers_path unless @campaign
+    redirect_to ENV["WORDPRESS_URL"] unless @campaign
   end
 
   def mustache_params
@@ -51,29 +42,18 @@ class AdvertisementClicksController < ApplicationController
       property_name: CGI.escape(@property&.name.to_s),
       property_url: CGI.escape(@property&.url.to_s),
       template: CGI.escape(@template.to_s),
-      theme: CGI.escape(@theme.to_s),
+      theme: CGI.escape(@theme.to_s)
     }
   end
 
   def create_click
     return unless @campaign
-
-    if sponsor?
-      return CreateImpressionAndClickJob.perform_later(
-        @campaign.id,
-        @property.id,
-        request.remote_ip,
-        request.user_agent,
-        Time.current.iso8601,
-      )
-    end
-
     return unless @impression_id
 
     CreateClickJob.perform_later(
       @impression_id,
       @campaign.id,
-      Time.current.iso8601,
+      Time.current.iso8601
     )
   rescue => e
     Rollbar.error e

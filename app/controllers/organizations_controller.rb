@@ -1,14 +1,29 @@
 class OrganizationsController < ApplicationController
   include Sortable
+  include Scopable
 
   before_action :authenticate_administrator!, except: [:show]
-  before_action :set_organization_search, only: [:index]
   before_action :set_organization, only: [:show, :edit, :update, :destroy]
 
   def index
-    organizations = Organization.order(order_by)
-    organizations = @organization_search.apply(organizations)
-    @pagy, @organizations = pagy(organizations)
+    organizations = scope_list(Organization).order(order_by)
+    @pagy, @organizations = pagy(organizations, page: @page)
+  end
+
+  def show
+    payload = {
+      resource: {
+        dashboard: ENV["METABASE_ADVERTISER_DASHBOARD_ID"].to_i
+      },
+      params: {
+        "organization_id" => @organization.id,
+        "start_date" => @start_date.strftime("%F"),
+        "end_date" => @end_date.strftime("%F")
+      }
+    }
+    token = JWT.encode payload, ENV["METABASE_SECRET_KEY"]
+
+    @iframe_url = ENV["METABASE_SITE_URL"] + "/embed/dashboard/" + token + "#bordered=false&titled=false"
   end
 
   def new
@@ -20,7 +35,7 @@ class OrganizationsController < ApplicationController
 
     respond_to do |format|
       if @organization.save
-        format.html { redirect_to @organization, notice: "Organization was successfully created." }
+        format.html { redirect_to @organization, notice: t("organizations.create.success") }
         format.json { render :show, status: :created, location: @organization }
       else
         format.html { render :new }
@@ -32,7 +47,7 @@ class OrganizationsController < ApplicationController
   def update
     respond_to do |format|
       if @organization.update(organization_params)
-        format.html { redirect_to @organization, notice: "Organization was successfully updated." }
+        format.html { redirect_to @organization, notice: t("organizations.update.success") }
         format.json { render :show, status: :ok, location: @organization }
       else
         format.html { render :edit }
@@ -45,44 +60,44 @@ class OrganizationsController < ApplicationController
     if @organization.users.empty?
       @organization.destroy
       respond_to do |format|
-        format.html { redirect_to organizations_url, notice: "Organization was successfully destroyed." }
+        format.html { redirect_to organizations_url, notice: t("organizations.destroy.success") }
         format.json { head :no_content }
       end
     else
       respond_to do |format|
-        format.html { redirect_to organizations_url, alert: "We are unable to delete an organization that has users" }
+        format.html { redirect_to organizations_url, alert: t("organizations.destroy.failure") }
         format.json { head :no_content }
       end
     end
   end
 
-  private
-
-  def set_organization_search
-    clear_searches except: :organization_search
-    @organization_search = GlobalID.parse(session[:organization_search]).find if session[:organization_search].present?
-    @organization_search ||= OrganizationSearch.new
-  end
+  protected
 
   def set_organization
-    @organization = if authorized_user.can_admin_system?
-      Organization.find(params[:id])
-    else
-      current_user.organization
-    end
+    @organization ||= Current.organization
   end
 
-  def organization_params
-    params.require(:organization).permit(
-      :name
-    )
-  end
-
-  def sortable_columns
-    %w[
+  def set_sortable_columns
+    @sortable_columns ||= %w[
       name
       balance_cents
       created_at
+      updated_at
     ]
+  end
+
+  def set_scopable_values
+    @scopable_values ||= ["all", ENUMS::ORGANIZATION_STATUSES.values].flatten
+  end
+
+  private
+
+  def organization_params
+    params.require(:organization).permit(
+      :name,
+      :account_manager_user_id,
+      :creative_approval_needed,
+      :url
+    )
   end
 end

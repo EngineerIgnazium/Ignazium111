@@ -6,6 +6,22 @@ module Campaigns
 
     included do
       before_save :init_hourly_budget
+      before_save :init_total_budget
+    end
+
+    def should_calculate_total_budget?
+      if campaign_pricing_strategy?
+        return false unless daily_budget > 0
+        return false unless total_budget == 0
+        return true
+      end
+
+      region_and_audience_pricing_strategy? && new_record?
+    end
+
+    def init_total_budget
+      return unless should_calculate_total_budget?
+      self.total_budget = total_operative_days * daily_budget
     end
 
     # Sponsor campaigns equate `total_budget` with `selling_price` because they are sold at a fixed price.
@@ -25,9 +41,9 @@ module Campaigns
     end
 
     # Returns a Money indicating how much budget remains
-    def total_remaining_budget
+    def total_remaining_budget(include_org_balance: true)
       value = total_budget - total_consumed_budget
-      return organization.balance if organization.balance < value
+      return organization.balance if organization.balance < value && include_org_balance
       value
     end
 
@@ -83,6 +99,7 @@ module Campaigns
 
     def average_daily_spend
       return Money.new(0) unless consumed_operative_days > 0
+      return Money.new(0) unless summary
       overview = summary
       overview.gross_revenue / consumed_operative_days
     end
@@ -115,10 +132,21 @@ module Campaigns
       pacing_too_slow?
     end
 
+    def gross_revenue_percentage
+      (summary.gross_revenue / total_budget) * 100
+    end
+
+    def should_display_budget_warnings?
+      return false if start_date.future? || start_date.today? || summary.nil?
+      (percentage_complete_by_date - gross_revenue_percentage).abs >= 5
+    end
+
     # Budget availability helpers ............................................................................
 
     # Returns a boolean indicating if the campaign has available budget
     def budget_available?
+      return false unless organization.balance > 0
+      return false unless total_remaining_budget > 0
       total_consumed_budget < total_budget
     end
 
@@ -138,8 +166,9 @@ module Campaigns
 
     def init_hourly_budget
       return unless daily_budget > 0
+      return unless hourly_budget == 0
       min = daily_budget / 18.to_f
-      self.hourly_budget ||= daily_budget / 8.to_f
+      self.hourly_budget = daily_budget / 8.to_f
       self.hourly_budget = min if hourly_budget < min
     end
   end

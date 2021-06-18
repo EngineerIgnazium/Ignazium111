@@ -1,20 +1,13 @@
-<% content_for :breadcrumbs do %>
-  <%= render "/@shared/breadcrumbs/organization", organization: @organization %>
-  <%= render "/@shared/breadcrumbs/organization_reports", organization: @organization %>
-  <%= render "/@shared/breadcrumbs/add_organization_report", organization: @organization, class: "active" %>
-<% end %>
-
-<% content_for :page_heading do %>
-  <%= page_heading "Generate", "Report",
-    subtitle: "Fill out the form below",
-    icon: "fas fa-chart" %>
-<% end %>
-
-<main id="content" role="main" class="bg-light">
-  <div class="container space-1">
+<%= render(PageComponent.new(subject: @organization, tabs: TabsComponent.new(tabs: organization_tabs(@organization)))) do |component| %>
+  <% component.with(:header) do %>
+    <%= render(Page::HeaderComponent.new(title: "Generate Report", subtitle: "Fill out the form below", buttons: [
+      generate_organization_report_button(@organization.id)
+    ])) %>
+  <% end %>
+  <% component.with(:body) do %>
     <%= render "/organization_reports/form",
-        organization: @organization,
-        organization_report: @organization_report,
-        url: organization_reports_path(@organization) %>
-  </div>
-</main>
+      organization: @organization,
+      organization_report: @organization_report,
+      url: organization_reports_path(@organization) %>
+  <% end %>
+<% end %>

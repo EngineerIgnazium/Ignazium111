@@ -3,10 +3,15 @@
 # Table name: creative_images
 #
 #  id                           :bigint           not null, primary key
-#  creative_id                  :bigint           not null
-#  active_storage_attachment_id :bigint           not null
 #  created_at                   :datetime         not null
 #  updated_at                   :datetime         not null
+#  active_storage_attachment_id :bigint           not null
+#  creative_id                  :bigint           not null
+#
+# Indexes
+#
+#  index_creative_images_on_active_storage_attachment_id  (active_storage_attachment_id)
+#  index_creative_images_on_creative_id                   (creative_id)
 #
 
 class CreativeImage < ApplicationRecord
@@ -14,7 +19,7 @@ class CreativeImage < ApplicationRecord
     ENUMS::IMAGE_FORMATS::ICON,
     ENUMS::IMAGE_FORMATS::SMALL,
     ENUMS::IMAGE_FORMATS::LARGE,
-    ENUMS::IMAGE_FORMATS::WIDE,
+    ENUMS::IMAGE_FORMATS::WIDE
   ].freeze
 
   # extends ...................................................................
@@ -35,6 +40,7 @@ class CreativeImage < ApplicationRecord
   scope :sponsor, -> { where active_storage_attachment_id: ActiveStorage::Attachment.metadata_format(ENUMS::IMAGE_FORMATS::SPONSOR) }
 
   # additional config (i.e. accepts_nested_attribute_for etc...) ..............
+  delegate :organization, to: :creative
 
   # class methods .............................................................
   class << self

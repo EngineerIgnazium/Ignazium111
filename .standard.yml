@@ -1,7 +1,7 @@
 fix: false
 parallel: true
 format: progress
-ruby_version: 2.5.3
+ruby_version: 2.6.6
 ignore:
   - 'bin/**/*'
   - 'db/schema.rb'
@@ -13,3 +13,7 @@ ignore:
   - 'vendor/**/*'
   - 'test/**/*':
     - Layout/AlignHash
+  - 'app/**/*':
+    - Naming/AccessorMethodName
+  - 'app/controllers/advertisements_controller.rb':
+    - Performance/InefficientHashSearch

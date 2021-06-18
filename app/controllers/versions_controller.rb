@@ -6,6 +6,8 @@ class VersionsController < ApplicationController
   before_action :set_property, only: [:index], if: -> { params[:property_id].present? }
   before_action :set_versionable, only: [:show, :update]
   before_action :set_version, only: [:show, :update]
+  before_action :authorize_view!, only: [:index, :show]
+  before_action :authorize_edit!, only: [:update]
 
   def index
     @versions = @versionable.versions
@@ -37,18 +39,14 @@ class VersionsController < ApplicationController
   end
 
   def set_organization
-    @versionable = if authorized_user.can_admin_system?
-      Organization.find(params[:organization_id])
-    else
-      current_user.organization
-    end
+    @versionable = Current.organization
   end
 
   def set_campaign
     @versionable = if authorized_user.can_admin_system?
       Campaign.find(params[:campaign_id])
     else
-      current_user.campaigns.find(params[:campaign_id])
+      Current.organization&.campaigns&.find(params[:campaign_id])
     end
   end
 
@@ -61,11 +59,18 @@ class VersionsController < ApplicationController
   end
 
   def set_versionable
-    # TODO: create authorizer and check permissions
     @versionable = GlobalID::Locator.locate_signed(params[:sgid])
   end
 
   def set_version
     @version = @versionable.versions.find(params[:id])
+  end
+
+  def authorize_edit!
+    render_forbidden unless authorized_user.can_edit_versionable?(@versionable)
+  end
+
+  def authorize_view!
+    render_forbidden unless authorized_user.can_view_versionable?(@versionable)
   end
 end

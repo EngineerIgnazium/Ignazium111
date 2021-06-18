@@ -2,6 +2,11 @@ class PropertyEarningsController < ApplicationController
   before_action :authenticate_user!
   before_action :set_property
 
+  def show
+    @paid_report = @property.daily_summaries_by_day(@start_date, @end_date, paid: true)
+    @unpaid_report = @property.daily_summaries_by_day(@start_date, @end_date, paid: false)
+  end
+
   private
 
   def set_property

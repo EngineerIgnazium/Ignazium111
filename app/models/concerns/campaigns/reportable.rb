@@ -21,7 +21,7 @@ module Campaigns
         "Clicks",
         "CTR",
         "CPM",
-        "CPC",
+        "CPC"
       ]
       daily_summaries_by_day(start, stop).each do |daily_summary|
         rows << [
@@ -31,7 +31,7 @@ module Campaigns
           daily_summary.clicks_count,
           daily_summary.click_rate.round(2),
           daily_summary.cpm,
-          daily_summary.cpc,
+          daily_summary.cpc
         ]
       end
       rows
@@ -65,7 +65,7 @@ module Campaigns
         "Clicks",
         "CTR",
         "CPM",
-        "CPC",
+        "CPC"
       ]
       daily_summary_reports_by_creative(start, stop).each do |report|
         rows << [
@@ -76,7 +76,7 @@ module Campaigns
           report.clicks_count,
           report.click_rate.round(2),
           report.cpm,
-          report.cpc,
+          report.cpc
         ]
       end
       rows
@@ -97,7 +97,7 @@ module Campaigns
     # Property report ----------------------------------------------------------------------------------------
 
     def daily_summary_reports_by_property(start = nil, stop = nil)
-      daily_summary_reports.scoped_by_type("Property").between(start || start_date, stop || end_date).includes(:scoped_by)
+      daily_summary_reports.scoped_by_type("Property").between(start || start_date, stop || end_date)
     end
 
     def property_report(start = nil, stop = nil)
@@ -112,7 +112,7 @@ module Campaigns
         "Clicks",
         "CTR",
         "CPM",
-        "CPC",
+        "CPC"
       ]
       daily_summary_reports_by_property(start, stop).each do |report|
         rows << [
@@ -125,7 +125,7 @@ module Campaigns
           report.clicks_count,
           report.click_rate.round(2),
           report.cpm,
-          report.cpc,
+          report.cpc
         ]
       end
       rows
@@ -158,7 +158,7 @@ module Campaigns
         "Clicks",
         "CTR",
         "CPM",
-        "CPC",
+        "CPC"
       ]
       daily_summary_reports_by_country_code(start, stop).each do |report|
         rows << [
@@ -168,7 +168,7 @@ module Campaigns
           report.clicks_count,
           report.click_rate.round(2),
           report.cpm,
-          report.cpc,
+          report.cpc
         ]
       end
       rows

@@ -3,16 +3,24 @@
 # Table name: organization_transactions
 #
 #  id               :bigint           not null, primary key
-#  organization_id  :bigint           not null
 #  amount_cents     :integer          default(0), not null
 #  amount_currency  :string           default("USD"), not null
-#  transaction_type :string           not null
-#  posted_at        :datetime         not null
 #  description      :text
+#  gift             :boolean          default(FALSE)
+#  posted_at        :datetime         not null
 #  reference        :text
+#  temporary        :boolean          default(FALSE)
+#  transaction_type :string           not null
 #  created_at       :datetime         not null
 #  updated_at       :datetime         not null
-#  gift             :boolean          default(FALSE)
+#  organization_id  :bigint           not null
+#
+# Indexes
+#
+#  index_organization_transactions_on_gift              (gift)
+#  index_organization_transactions_on_organization_id   (organization_id)
+#  index_organization_transactions_on_reference         (reference)
+#  index_organization_transactions_on_transaction_type  (transaction_type)
 #
 
 class OrganizationTransaction < ApplicationRecord
@@ -26,12 +34,15 @@ class OrganizationTransaction < ApplicationRecord
   validates :posted_at, presence: true
   validates :transaction_type, presence: true, inclusion: {in: ENUMS::ORGANIZATION_TRANSACTION_TYPES.values}
   validates :description, presence: true
+  validate :validate_gift
+  validate :validate_temporary
 
   # callbacks .................................................................
 
   # scopes ....................................................................
   scope :debits, -> { where(transaction_type: ENUMS::ORGANIZATION_TRANSACTION_TYPES::DEBIT) }
   scope :credits, -> { where(transaction_type: ENUMS::ORGANIZATION_TRANSACTION_TYPES::CREDIT) }
+  scope :credited_gifts, -> { where(transaction_type: ENUMS::ORGANIZATION_TRANSACTION_TYPES::CREDIT, gift: true) }
   scope :gift, -> { where(gift: true) }
   scope :posted_between, ->(start_date, end_date = nil) {
     start_date, end_date = range_boundary(start_date) if start_date.is_a?(Range)
@@ -50,4 +61,16 @@ class OrganizationTransaction < ApplicationRecord
   # protected instance methods ................................................
 
   # private instance methods ..................................................
+
+  private
+
+  def validate_gift
+    return unless gift
+    errors.add(:base, "cannot be gift and temporary") if temporary
+  end
+
+  def validate_temporary
+    return unless temporary
+    errors.add(:base, "type must be credit if temporary") if transaction_type != ENUMS::ORGANIZATION_TRANSACTION_TYPES::CREDIT
+  end
 end

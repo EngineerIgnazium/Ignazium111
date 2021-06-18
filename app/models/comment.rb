@@ -3,17 +3,22 @@
 # Table name: comments
 #
 #  id               :bigint           not null, primary key
-#  commentable_id   :bigint           not null
-#  commentable_type :string           not null
-#  title            :string
 #  body             :text
+#  commentable_type :string
+#  lft              :bigint
+#  rgt              :bigint
 #  subject          :string
-#  user_id          :bigint           not null
-#  parent_id        :bigint
-#  lft              :integer
-#  rgt              :integer
+#  title            :string
 #  created_at       :datetime         not null
 #  updated_at       :datetime         not null
+#  commentable_id   :bigint
+#  parent_id        :bigint
+#  user_id          :bigint           not null
+#
+# Indexes
+#
+#  index_comments_on_commentable_id_and_commentable_type  (commentable_id,commentable_type)
+#  index_comments_on_user_id                              (user_id)
 #
 
 class Comment < ActiveRecord::Base
@@ -45,6 +50,7 @@ class Comment < ActiveRecord::Base
 
   # additional config (i.e. accepts_nested_attribute_for etc...) ..............
   acts_as_nested_set scope: [:commentable_id, :commentable_type]
+  has_rich_text :content
 
   # class methods .............................................................
   class << self
@@ -52,12 +58,13 @@ class Comment < ActiveRecord::Base
     alias for_commentable find_comments_for_commentable
 
     # Helper class method that allows you to build a comment
-    # by passing a commentable object, a user_id, and comment text
+    # by passing a commentable object, a user_id, and ActionText content
     # example in readme
-    def build_from(obj, user_id, comment)
+    def build_from(obj, user_id, content)
       new \
         commentable: obj,
-        body: comment,
+        body: "#",
+        content: content,
         user_id: user_id
     end
 

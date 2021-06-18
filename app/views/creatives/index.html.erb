@@ -1,31 +1,10 @@
-<% content_for :breadcrumbs do %>
-  <%= render "/@shared/breadcrumbs/creatives", class: "active" %>
+<%= render(PageComponent.new) do |component| %>
+  <% component.with(:header) do %>
+    <%= render(Page::HeaderComponent.new(title: "Creatives", buttons: [
+      layout_button(link: new_creative_path, icon: "fas fa-plus", title: "Add creative")
+    ])) %>
+  <% end %>
+  <% component.with(:body) do %>
+    <%= render "/shared/data_list", resource_name: "creatives", collection: @creatives, pagy: @pagy %>
+  <% end %>
 <% end %>
-
-<% content_for :actions do %>
-  <%= render "/@shared/actions/add_creative" if authorized_user.can_create_creative? %>
-<% end %>
-
-<% content_for :page_heading do %>
-  <%= page_heading "Viewing", "Creatives",
-    subtitle: "#{pluralize(@pagy.count, "record")} found",
-    icon: "fas fa-palette" %>
-<% end %>
-
-<main id="content" role="main" class="bg-light">
-  <div class="container space-1">
-    <%= render partial: "/creative_searches/form",
-              layout: "/@shared/collapsable_search_form",
-              locals: { search: @creative_search } %>
-    <div class="mb-2">
-      <div class="card-sm-columns card-md-2-count card-lg-3-count">
-        <%= render partial: "/creatives/creative", collection: @creatives, as: :creative %>
-      </div>
-    </div>
-
-    <div class="d-flex justify-content-between align-items-center">
-      <span><%== pagy_bootstrap_nav(@pagy) if @pagy.pages > 1 %></span>
-      <%= pagy_entries(@pagy) %>
-    </div>
-  </div>
-</main>

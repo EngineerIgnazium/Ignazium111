@@ -1,0 +1,127 @@
+div#cf[data-template='vertical'][data-theme='dark'] {
+  width: 125px;
+  margin: 0 auto;
+  border: none;
+  background-color: transparent;
+
+  span.cf-wrapper {
+    display: block;
+    padding: 0;
+    font-size: 14px;
+    line-height: 1.4;
+    text-align: left;
+    font-family: Helvetica, Arial, sans-serif;
+    font-weight: 350;
+    margin-left: auto;
+    margin-right: auto;
+
+    a.cf-sponsored-by {
+      box-shadow: none !important;
+      text-decoration: none;
+    }
+
+    span.cf-img-wrapper {
+      display: block;
+      margin-bottom: 8px;
+
+      img {
+        width: 125px;
+        height: 125px;
+        position: relative;
+      }
+    }
+
+    span.cf-text {
+      color: rgba(255, 255, 255, 0.8);
+
+      strong {
+        color: #ffffff;
+      }
+
+      span.cf-cta {
+        text-decoration: underline;
+        color: #ffffff;
+      }
+    }
+    a.cf-powered-by {
+      margin-top: 10px;
+      font-size: 11px;
+      display: block;
+      color: rgba(255, 255, 255, 0.6);
+      text-align: left;
+      text-decoration: none;
+      &:hover {
+        text-decoration: underline !important;
+      }
+
+      img {
+        position: fixed;
+        left: -1000px;
+        top: -1000px;
+      }
+    }
+  }
+}
+
+div#cf[data-template='vertical'][data-theme='light'] {
+  width: 125px;
+  margin: 0 auto;
+  border: none;
+  background-color: transparent;
+
+  span.cf-wrapper {
+    display: block;
+    padding: 0;
+    font-size: 14px;
+    line-height: 1.4;
+    text-align: left;
+    font-family: Helvetica, Arial, sans-serif;
+    font-weight: 350;
+    margin-left: auto;
+    margin-right: auto;
+
+    a.cf-sponsored-by {
+      box-shadow: none !important;
+      text-decoration: none;
+    }
+
+    span.cf-img-wrapper {
+      display: block;
+      margin-bottom: 8px;
+
+      img {
+        width: 125px;
+        height: 125px;
+        position: relative;
+      }
+    }
+
+    span.cf-text {
+      color: #3e3e3e;
+
+      span.cf-cta {
+        text-decoration: underline;
+        color: #2c6ac7;
+      }
+    }
+
+    a.cf-powered-by {
+      margin-top: 10px;
+      font-size: 11px;
+      display: block;
+      color: #aaa;
+      text-decoration: none;
+
+      &:hover {
+        color: #888;
+        text-decoration: underline !important;
+      }
+
+      img {
+        position: fixed;
+        left: -1000px;
+        top: -1000px;
+      }
+    }
+  }
+}

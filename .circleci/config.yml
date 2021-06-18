@@ -1,80 +1,100 @@
-# Ruby CircleCI 2.0 configuration file
-#
-# Check https://circleci.com/docs/2.0/language-ruby/ for more details
-#
-version: 2
+version: 2.1
 jobs:
   build:
     docker:
-      # specify the version you desire here
-      - image: circleci/ruby:2.6.4-node-browsers
+      - image: circleci/ruby:2.6.6-browsers
         environment:
+          CAMPAIGN_DEMO_ID: "395"
           PG_HOST: localhost
-          PG_USER: ubuntu
+          PG_USERNAME: postgres
           RAILS_ENV: test
+          NODE_ENV: test
           RACK_ENV: test
-          AWS_S3_ACCESS_KEY_ID: AKIAIOSFODNN7EXAMPLE
-          AWS_S3_BUCKET: example_s3_bucket
-          AWS_S3_REGION: us-west-2
-          AWS_S3_SECRET_ACCESS_KEY: wJalrXUtnFEMI/K7MDENG/bPxRfiCYzEXAMPLEKEY
-          BASE_ECPM: 400
-          BUFFER_ENABLED: false
           DEFAULT_HOST: codefund.io
-          ENABLED_FEATURES: jobs
-          HUBSPOT_ENABLED: false
-          PG_TIMEOUT_IN_SECONDS: 3
-          RAILS_MAX_THREADS: 10
+          PARALLEL_WORKERS: "1"
           REDIS_CACHE_URL: redis://127.0.0.1:6379
           REDIS_QUEUE_URL: redis://127.0.0.1:6379
-          SCOUT_SAMPLE_RATE: 0.3
-          DATABASE_URL: "postgres://ubuntu@localhost:5432/code_fund_ads_test"
-
-      # Specify service dependencies here if necessary
-      # CircleCI maintains a library of pre-built images
-      # documented at https://circleci.com/docs/2.0/circleci-images/
-      - image: circleci/postgres:11.2
+          WORDPRESS_URL: 'https://codefund.io'
+      - image: circleci/postgres:12.2
         environment:
-          POSTGRES_USER: ubuntu
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: code_fund_ads_test
       - image: circleci/redis:5.0.4
-
     working_directory: ~/repo
-
     steps:
       - checkout
-
+      - run:
+          name: Set up assets cache key
+          command: find app/javascript -type f | xargs -d'\n' -P0 -n1 md5sum | sort -k 2 | md5sum > dependency_checksum
+      - run: |
+          sudo curl -sL https://deb.nodesource.com/setup_13.x | sudo bash -
+          curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | sudo apt-key add -
+          echo "deb https://dl.yarnpkg.com/debian/ stable main" | sudo tee /etc/apt/sources.list.d/yarn.list
+          sudo apt-get update && sudo apt-get install -y libpq-dev postgresql-client nodejs yarn
       - restore_cache:
+          name: Restore gem cache
           keys:
-            - v1-dependencies-{{ checksum "Gemfile.lock" }}
-            # fallback to using the latest cache if no exact match is found
-            - v1-dependencies-
-
-      - run: sudo apt-get update
-      - run: sudo apt-get install -y postgresql-client
-
+            - gem-cache-v9-{{ arch }}-{{ .Branch }}-{{ checksum "Gemfile.lock" }}
+            - gem-cache-v9-{{ arch }}-{{ .Branch }}
+            - gem-cache-v9-{{ arch }}
+            - gem-cache-v9
+      - restore_cache:
+          name: Restore yarn cache
+          keys:
+            - yarn-cache-v9-{{ arch }}-{{ .Branch }}-{{ checksum "yarn.lock" }}
+            - yarn-cache-v9-{{ arch }}-{{ .Branch }}
+            - yarn-cache-v9-{{ arch }}
+            - yarn-cache-v9
+      - restore_cache:
+          name: Restore assets cache
+          keys:
+            - assets-cache-v9-{{ checksum "dependency_checksum" }}-{{ arch }}-{{ .Branch }}
+            - assets-cache-v9-{{ checksum "dependency_checksum" }}-{{ arch }}
+            - assets-cache-v9-{{ checksum "dependency_checksum" }}
       - run:
-          name: update bundler
+          name: Install gem dependencies
           command: |
-            gem install bundler:2.0.1
-
+            gem install bundler:2.1.4
+            bundle check || bundle install --jobs=6 --retry=3 --path vendor/bundle
       - run:
-          name: install dependencies
-          command: |
-            bundle install --jobs=4 --retry=3 --path vendor/bundle
-
+          name: Install yarn dependencies
+          command: yarn install --check-files --frozen-lockfile
+      - run:
+          name: Precompile assets
+          command: bundle exec rails assets:precompile
       - save_cache:
+          name: Save gem cache
           paths:
-            - ./vendor/bundle
-          key: v1-dependencies-{{ checksum "Gemfile.lock" }}
-
+            - vendor/bundle
+          key: gem-cache-v9-{{ arch }}-{{ .Branch }}-{{ checksum "Gemfile.lock" }}
+      - save_cache:
+          name: Save yarn cache
+          paths:
+            - ~/.cache/yarn
+          key: yarn-cache-v9-{{ arch }}-{{ .Branch }}-{{ checksum "yarn.lock" }}
+      - save_cache:
+          name: Save assets cache
+          paths:
+            - public/packs-test
+            - public/assets
+            - tmp/cache/webpacker
+            - tmp/cache/assets/sprockets
+          key: assets-cache-v9-{{ checksum "dependency_checksum" }}-{{ arch }}-{{ .Branch }}
       - run:
           name: Set up DB
           command: bundle exec rails db:drop db:create db:structure:load --trace
-
       - run:
-          name: run tests
+          name: Run zeitwerk check
+          command: bundle exec rails zeitwerk:check
+      - run:
+          name: Run tests
           command: bundle exec rails test
-
       - run:
-          name: run system tests
-          command: bundle exec rails test:system
+          name: Run system tests
+          command: |
+            set +e
+            bundle exec rails test:system
+      - store_artifacts:
+          path: tmp/screenshots
+          destination: screenshots

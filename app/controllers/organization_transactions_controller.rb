@@ -6,9 +6,12 @@ class OrganizationTransactionsController < ApplicationController
   before_action :set_organization
   before_action :set_organization_transaction, only: [:show, :edit, :update, :destroy]
 
+  set_default_sorted_by :posted_at
+  set_default_sorted_direction :desc
+
   def index
     organization_transactions = @organization.organization_transactions.order(order_by)
-    @pagy, @organization_transactions = pagy(organization_transactions)
+    @pagy, @organization_transactions = pagy(organization_transactions, page: @page)
 
     respond_to do |format|
       format.html
@@ -70,19 +73,24 @@ class OrganizationTransactionsController < ApplicationController
     Rollbar.error e
   end
 
-  private
+  protected
 
   def set_organization
-    @organization = if authorized_user.can_admin_system?
-      Organization.find(params[:organization_id])
-    else
-      current_user.organization
-    end
+    @organization = Current.organization
   end
 
   def set_organization_transaction
     @organization_transaction = @organization.organization_transactions.find(params[:id])
   end
+
+  def set_sortable_columns
+    @sortable_columns ||= %w[
+      posted_at
+      amount_cents
+    ]
+  end
+
+  private
 
   def organization_transaction_params
     params.require(:organization_transaction)
@@ -91,21 +99,10 @@ class OrganizationTransactionsController < ApplicationController
         :description,
         :gift,
         :reference,
-        :transaction_type
+        :transaction_type,
+        :temporary
       ).tap do |whitelisted|
         whitelisted[:posted_at] = Date.strptime(params[:organization_transaction][:posted_at], "%m/%d/%Y")
       end
-  end
-
-  def sort_column
-    return params[:column] if sortable_columns.include?(params[:column])
-    "posted_at"
-  end
-
-  def sortable_columns
-    %w[
-      posted_at
-      amount_cents
-    ]
   end
 end

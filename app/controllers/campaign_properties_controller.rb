@@ -1,11 +1,14 @@
 class CampaignPropertiesController < ApplicationController
+  include Campaigns::Stashable
+
   before_action :authenticate_user!
   before_action :authenticate_administrator!, only: [:update]
   before_action :set_campaign
 
   def index
     @summary = @campaign.summary(@start_date, @end_date)
-    @reports = @campaign.daily_summary_reports_by_property(@start_date, @end_date)
+    reports = @campaign.daily_summary_reports_by_property(@start_date, @end_date)
+    @pagy, @reports = pagy_arel(reports)
 
     respond_to do |format|
       format.html
@@ -34,7 +37,7 @@ class CampaignPropertiesController < ApplicationController
     @campaign = if authorized_user.can_admin_system?
       Campaign.find(params[:campaign_id])
     else
-      current_user.campaigns.find(params[:campaign_id])
+      Current.organization&.campaigns&.find(params[:campaign_id])
     end
   end
 end

@@ -10,10 +10,6 @@ We have over 10 million monthly pageviews and are growing at approx 20% per mont
 
 Our platform follows the "ethical advertising" guidelines that ReadTheDocs established. We will not track or profile the ad viewers, and we only show ads that are relevant to the audience. This document describes how we can help you reach a broader audience. We look forward to working with you!
 
-## Pricing
-
-Please see https://codefund.io/pricing
-
 ## Targeting
 
 We offer targeting based on programming language and geographic segmentation. We
@@ -75,7 +71,7 @@ Each template uses an ad creative that follows these guidelines:
 
 * Ad creative **headline** + **body** should not be more than **84 characters long**.
 * Banner image may not be animated.
-* We recomment the use of 👋 emoji when it makes sense, but don't overuse it.
+* We recommend the use of 👋 emoji when it makes sense, but don't overuse it.
 
 We are software developers first and foremost. We will help you craft a message that resonates with the developer community if needed.
 

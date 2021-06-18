@@ -41,7 +41,7 @@ Rails.application.configure do
 
   # Specifies the header that your server uses for sending files.
   # config.action_dispatch.x_sendfile_header = 'X-Sendfile' # for Apache
-  # config.action_dispatch.x_sendfile_header = 'X-Accel-Redirect' # for NGINX
+  config.action_dispatch.x_sendfile_header = "X-Accel-Redirect" # for NGINX
 
   # Store uploaded files on the local file system (see config/storage.yml for options)
   config.active_storage.service = :amazon
@@ -49,7 +49,7 @@ Rails.application.configure do
   # Mount Action Cable outside main process or domain
   # config.action_cable.mount_path = nil
   # config.action_cable.url = 'wss://example.com/cable'
-  # config.action_cable.allowed_request_origins = [ 'http://example.com', /http:\/\/example.*/ ]
+  config.action_cable.allowed_request_origins = [%r{https://.*codefund\.io}]
 
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = true
@@ -65,20 +65,22 @@ Rails.application.configure do
   config.cache_store = :redis_cache_store, {
     namespace: "code_fund_ads_#{Rails.env}_cache",
     url: ENV["REDIS_CACHE_URL"],
-    size: ENV.fetch("RAILS_MAX_THREADS", 10).to_i,
+    size: ENV.fetch("REDIS_CACHE_MAX_THREADS", 5).to_i,
     expires_in: 7.days,
-    race_condition_ttl: 30.seconds,
+    race_condition_ttl: 30.seconds
   }
   # Use a real queuing backend for Active Job (and separate queues per environment)
   # config.active_job.queue_adapter     = :resque
   # config.active_job.queue_name_prefix = "code_fund_ads_#{Rails.env}"
 
-  config.action_mailer.perform_caching = false
-  config.action_mailer.delivery_method = :mailgun
-  config.action_mailer.mailgun_settings = {
-    api_key: ENV["MAILGUN_API_KEY"],
-    domain: ENV["MAILGUN_DOMAIN"],
+  config.action_mailer.delivery_method = :sendgrid_actionmailer
+  config.action_mailer.sendgrid_actionmailer_settings = {
+    api_key: ENV["SENDGRID_API_KEY"],
+    raise_delivery_errors: true
   }
+
+  # Prepare the ingress controller used to receive mail
+  config.action_mailbox.ingress = :sendgrid
 
   # Ignore bad email addresses and do not raise email delivery errors.
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.
@@ -107,5 +109,5 @@ Rails.application.configure do
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
 
-  config.action_mailer.default_url_options = {host: "codefund.io"}
+  config.action_mailer.default_url_options = {host: "app.codefund.io"}
 end

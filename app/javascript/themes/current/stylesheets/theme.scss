@@ -1,0 +1,104 @@
+// =========== Webpack ===========
+@import '~animate.css/animate';
+@import '~bootstrap-select/dist/css/bootstrap-select.min';
+
+// =========== Vendor ===========
+@import '~themes/current/stylesheets/theme.min';
+
+body {
+  padding-top: 56px;
+}
+
+.main {
+  min-height: calc(100vh - 328px);
+}
+
+.navbar-brand img,
+.navbar-brand svg {
+  max-height: 30px;
+  max-width: 210px;
+  position: relative;
+  top: -2px;
+  left: 12px;
+}
+
+footer {
+  z-index: 9999;
+  position: relative;
+}
+
+.app-header-dark {
+  background-color: $color-gray-800 !important;
+}
+
+li.menu-item.active {
+  a.menu-link {
+    color: $color-gray-800;
+    background-color: $color-white;
+  }
+}
+
+.app-main {
+  padding-top: 0px;
+}
+
+.pointer {
+  cursor: pointer;
+}
+
+.layout-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  line-height: 2.5rem;
+  border-radius: 0.2rem;
+  margin-left: 4px;
+}
+
+button.layout-button {
+  height: 2.5rem;
+  line-height: 1rem;
+}
+
+.metabase-card {
+  width: 100%;
+  min-height: 600px;
+  border: 0;
+  resize: horizontal;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  word-wrap: break-word;
+  background-color: $color-white;
+  background-clip: border-box;
+}
+
+.form-group {
+  .field_with_errors {
+    label {
+      color: $color-danger;
+    }
+    .form-control {
+      &,
+      &:focus,
+      &:active {
+        border-color: $color-danger;
+        box-shadow: inset 0 1px 0 0 $color-danger-light;
+      }
+    }
+  }
+}
+
+.app-header,
+.auth-header {
+  background-color: $color-purple !important;
+  background-image: url('../../../images/patterns/pattern2.svg');
+  background-size: initial;
+  background-repeat: repeat;
+}
+
+.dashboard-grid-wrapper {
+  display: grid;
+  grid-gap: 10px 20px;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
